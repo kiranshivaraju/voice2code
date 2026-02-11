@@ -1,0 +1,52 @@
+prodkit:
+  version: "1.0.0"
+
+project:
+  name: "Voice2Code"
+  type: "node"  # TypeScript-based IDE extension
+  description: "Privacy-focused speech-to-text extension for IDEs with configurable local and remote model support"
+
+github:
+  repo: "kiranshivaraju/voice2code"  # format: username/repo-name
+  default_branch: "main"
+
+dependencies:
+  speckit:
+    required: true
+    version: ">=1.0.0"
+
+development:
+  workflow: "speckit"  # Use Speckit for /prodkit.dev
+  auto_push: false     # Manual review before pushing
+
+testing:
+  framework: "jest"  # TypeScript/JavaScript testing framework
+  min_coverage: 80
+  types:
+    - unit
+    - contract
+    - integration
+
+sprints:
+  current: 1
+  naming_pattern: "v{N}"  # v1, v2, v3, etc.
+
+structure:
+  product_docs: "product/"
+  sprint_docs: "sprints/"
+  source: "src/"
+  tests: "tests/"
+
+labels:
+  priority:
+    - "P0"  # Critical
+    - "P1"  # High
+    - "P2"  # Medium
+  types:
+    - "feature"
+    - "unit-test"
+    - "contract-test"
+    - "integration-test"
+    - "infrastructure"
+    - "refactor"
+    - "documentation"

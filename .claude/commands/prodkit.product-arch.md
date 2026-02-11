@@ -1,0 +1,1 @@
+../../.prodkit/commands/prodkit.product-arch.md
