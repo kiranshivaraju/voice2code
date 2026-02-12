@@ -769,7 +769,106 @@ RATE_LIMIT_PER_MINUTE=60
 
 ---
 
-### Step 6: Confirm Completion
+### Step 6: Validate Tech Docs Created
+
+**Run validation checks to ensure all documentation was created:**
+
+Display validation in progress:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VALIDATING TECH DOCS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Check 1: Sprint Tech Docs Directory**
+```bash
+SPRINT_NUM=$(grep "current:" .prodkit/config.yml | sed 's/.*current: //')
+TECH_DOCS_DIR="sprints/v${SPRINT_NUM}/tech-docs"
+
+if [ ! -d "$TECH_DOCS_DIR" ]; then
+    echo "❌ Validation failed: Tech docs directory not found"
+    echo "Expected: $TECH_DOCS_DIR"
+    exit 1
+fi
+
+echo "✓ Tech docs directory exists"
+```
+
+**Check 2: All Required Docs Created**
+```bash
+REQUIRED_DOCS=(
+    "data-models.md"
+    "api-endpoints.md"
+    "implementation-plan.md"
+    "component-design.md"
+)
+
+MISSING_DOCS=()
+
+for doc in "${REQUIRED_DOCS[@]}"; do
+    if [ ! -f "$TECH_DOCS_DIR/$doc" ]; then
+        MISSING_DOCS+=("$doc")
+    fi
+done
+
+if [ ${#MISSING_DOCS[@]} -gt 0 ]; then
+    echo "❌ Validation failed: Missing tech docs: ${MISSING_DOCS[*]}"
+    exit 1
+fi
+
+echo "✓ All 4 required docs created"
+```
+
+**Check 3: Docs Have Content**
+```bash
+EMPTY_DOCS=()
+
+for doc in "${REQUIRED_DOCS[@]}"; do
+    if [ ! -s "$TECH_DOCS_DIR/$doc" ]; then
+        EMPTY_DOCS+=("$doc")
+    fi
+done
+
+if [ ${#EMPTY_DOCS[@]} -gt 0 ]; then
+    echo "❌ Validation failed: Empty docs: ${EMPTY_DOCS[*]}"
+    echo "All docs must have content"
+    exit 1
+fi
+
+echo "✓ All docs have content"
+```
+
+**Check 4: Sprint Plan Exists (prerequisite)**
+```bash
+SPRINT_PLAN="sprints/v${SPRINT_NUM}/sprint-plan.md"
+
+if [ ! -f "$SPRINT_PLAN" ]; then
+    echo "⚠️  Warning: Sprint plan not found"
+    echo "Expected: $SPRINT_PLAN"
+    echo "Run /prodkit.plan-sprint first"
+else
+    echo "✓ Sprint plan exists"
+fi
+```
+
+**Check 5: Product Architecture Exists (prerequisite)**
+```bash
+if [ ! -d "product/tech-docs" ]; then
+    echo "⚠️  Warning: Product architecture not found"
+    echo "Run /prodkit.product-arch first"
+else
+    echo "✓ Product architecture exists"
+fi
+```
+
+Display validation complete:
+```
+✓ All validation checks passed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Step 7: Confirm Completion
 
 Inform the user:
 - ✓ Sprint technical documentation created in `sprints/v{N}/tech-docs/`

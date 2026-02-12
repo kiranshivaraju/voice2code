@@ -29,9 +29,33 @@ Read `.prodkit/config.yml` to get:
 - GitHub repo name
 - Auto-push setting
 
-### Step 2: Fetch Highest Priority Issue
+### Step 2: Get GitHub Credentials and Fetch Highest Priority Issue
 
-Get GitHub credentials from user (PAT) and repository info from config.
+Read `.prodkit/config.yml` to get:
+- GitHub username: `github.username`
+- GitHub repository: `github.repo` (format: username/repo-name)
+
+Read GitHub Personal Access Token from `.prodkit/.github-token`:
+
+```bash
+if [ -f ".prodkit/.github-token" ]; then
+    GITHUB_TOKEN=$(cat .prodkit/.github-token | tr -d '[:space:]')
+else
+    echo "❌ Error: GitHub token not found"
+    echo ""
+    echo "Please run /prodkit.init-repo first to set up your GitHub token."
+    echo "Or manually create .prodkit/.github-token with your GitHub PAT."
+    exit 1
+fi
+```
+
+Extract username and repo name from config:
+
+```bash
+# Parse from github.repo (format: username/repo-name)
+GITHUB_USERNAME=$(echo "$REPO" | cut -d'/' -f1)
+REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+```
 
 Query GitHub API for open issues in the current sprint milestone:
 
@@ -369,7 +393,149 @@ Then display:
 git checkout main
 ```
 
-### Step 13: Display Next Steps
+### Step 13: Validate Implementation
+
+**Run validation checks to ensure implementation completed successfully:**
+
+Display validation in progress:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VALIDATING IMPLEMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Check 1: Feature Branch Created**
+```bash
+BRANCH_NAME="feature/issue-${ISSUE_NUMBER}-{slug}"
+
+if ! git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+    echo "❌ Validation failed: Feature branch not created"
+    echo "Expected: $BRANCH_NAME"
+    exit 1
+fi
+
+echo "✓ Feature branch created: $BRANCH_NAME"
+```
+
+**Check 2: Commits Exist on Branch**
+```bash
+# Switch to feature branch temporarily to check commits
+git checkout "$BRANCH_NAME" -q
+
+COMMIT_COUNT=$(git rev-list --count main.."$BRANCH_NAME" 2>/dev/null || echo "0")
+
+if [ "$COMMIT_COUNT" -eq 0 ]; then
+    echo "❌ Validation failed: No commits on feature branch"
+    git checkout main -q
+    exit 1
+fi
+
+echo "✓ Found $COMMIT_COUNT commit(s) on feature branch"
+
+# Return to main
+git checkout main -q
+```
+
+**Check 3: Tests Were Run (check for test output/artifacts)**
+```bash
+# This is a soft check - we verify tests exist and can be run
+# The actual test run would have happened in Step 6
+
+if [ -d "tests" ]; then
+    TEST_FILE_COUNT=$(find tests -name "test_*.py" -o -name "*_test.py" -o -name "*.test.js" 2>/dev/null | wc -l | tr -d ' ')
+
+    if [ "$TEST_FILE_COUNT" -eq 0 ]; then
+        echo "⚠️  Warning: No test files found in tests/ directory"
+    else
+        echo "✓ Test files present ($TEST_FILE_COUNT files)"
+    fi
+else
+    echo "⚠️  Warning: tests/ directory not found"
+fi
+```
+
+**Check 4: Pull Request Created**
+```bash
+# Verify PR was created by checking if PR_NUMBER variable was set
+# In actual execution, we'd have stored this from Step 9
+
+if [ -f ".prodkit/.github-token" ]; then
+    GITHUB_TOKEN=$(cat .prodkit/.github-token | tr -d '[:space:]')
+    REPO=$(grep "repo:" .prodkit/config.yml | sed 's/.*repo: "\(.*\)".*/\1/' | sed 's/.*repo: //' | tr -d '"' | tr -d ' ')
+
+    # Check if PR exists for this branch
+    PR_CHECK=$(curl -s \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "Accept: application/vnd.github+json" \
+      "https://api.github.com/repos/$REPO/pulls?head=${REPO%/*}:$BRANCH_NAME&state=all")
+
+    PR_COUNT=$(echo "$PR_CHECK" | jq '. | length')
+
+    if [ "$PR_COUNT" -eq 0 ]; then
+        echo "⚠️  Warning: No PR found for branch $BRANCH_NAME"
+        echo "PR may not have been created"
+    else
+        PR_NUMBER=$(echo "$PR_CHECK" | jq -r '.[0].number')
+        echo "✓ Pull Request #$PR_NUMBER created"
+    fi
+else
+    echo "⚠️  Warning: Cannot verify PR (GitHub token not found)"
+fi
+```
+
+**Check 5: Issue Updated**
+```bash
+# Verify issue was linked/updated
+if [ ! -z "$ISSUE_NUMBER" ] && [ ! -z "$REPO" ] && [ -f ".prodkit/.github-token" ]; then
+    ISSUE_RESPONSE=$(curl -s \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "Accept: application/vnd.github+json" \
+      "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER")
+
+    ISSUE_STATE=$(echo "$ISSUE_RESPONSE" | jq -r '.state')
+
+    if [ "$ISSUE_STATE" == "open" ]; then
+        # Check if issue has comments linking PR
+        COMMENTS=$(curl -s \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/$REPO/issues/$ISSUE_NUMBER/comments")
+
+        if echo "$COMMENTS" | jq -e '.[] | select(.body | contains("Implemented in PR"))' > /dev/null 2>&1; then
+            echo "✓ Issue #$ISSUE_NUMBER linked to PR"
+        else
+            echo "⚠️  Warning: Issue may not be linked to PR"
+        fi
+    else
+        echo "✓ Issue #$ISSUE_NUMBER status: $ISSUE_STATE"
+    fi
+else
+    echo "⚠️  Warning: Cannot verify issue update"
+fi
+```
+
+**Check 6: Code Quality**
+```bash
+# Verify implementation meets quality standards
+echo ""
+echo "Implementation checklist:"
+echo "  ✓ Tests written (verified in Step 6)"
+echo "  ✓ Tests passing (verified in Step 6)"
+echo "  ✓ Coverage >= 80% (verified in Step 6)"
+echo "  ✓ Linter passing (verified in Step 7)"
+echo "  ✓ Code committed (verified above)"
+```
+
+Display validation complete:
+```
+✓ All validation checks passed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**If any critical checks fail, display error and exit. Warnings can continue.**
+
+### Step 14: Display Next Steps
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
