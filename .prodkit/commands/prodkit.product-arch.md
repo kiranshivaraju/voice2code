@@ -490,7 +490,114 @@ Update `.prodkit/config.yml`:
 - Set `project.type` to the chosen language
 - Set `testing.framework` to the chosen test framework
 
-### Step 6: Confirm Completion
+### Step 6: Validate Documentation Created
+
+**Run validation checks to ensure all documentation was created:**
+
+Display validation in progress:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VALIDATING DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Check 1: Product Tech Docs Directory**
+```bash
+if [ ! -d "product/tech-docs" ]; then
+    echo "❌ Validation failed: product/tech-docs/ directory not found"
+    exit 1
+fi
+
+echo "✓ Product tech docs directory exists"
+```
+
+**Check 2: All 6 Tech Docs Created**
+```bash
+REQUIRED_DOCS=(
+    "architecture.md"
+    "design-principles.md"
+    "security.md"
+    "data-architecture.md"
+    "api-strategy.md"
+    "testing-strategy.md"
+)
+
+MISSING_DOCS=()
+
+for doc in "${REQUIRED_DOCS[@]}"; do
+    if [ ! -f "product/tech-docs/$doc" ]; then
+        MISSING_DOCS+=("$doc")
+    fi
+done
+
+if [ ${#MISSING_DOCS[@]} -gt 0 ]; then
+    echo "❌ Validation failed: Missing tech docs: ${MISSING_DOCS[*]}"
+    exit 1
+fi
+
+echo "✓ All 6 tech docs created"
+```
+
+**Check 3: Docs Have Content (not empty)**
+```bash
+EMPTY_DOCS=()
+
+for doc in "${REQUIRED_DOCS[@]}"; do
+    if [ ! -s "product/tech-docs/$doc" ]; then
+        EMPTY_DOCS+=("$doc")
+    fi
+done
+
+if [ ${#EMPTY_DOCS[@]} -gt 0 ]; then
+    echo "⚠️  Warning: Empty docs: ${EMPTY_DOCS[*]}"
+else
+    echo "✓ All docs have content"
+fi
+```
+
+**Check 4: Speckit Constitution Created**
+```bash
+if [ ! -f ".speckit/constitution.md" ]; then
+    echo "❌ Validation failed: Speckit constitution not found"
+    echo "Expected: .speckit/constitution.md"
+    exit 1
+fi
+
+if [ ! -s ".speckit/constitution.md" ]; then
+    echo "⚠️  Warning: Speckit constitution is empty"
+else
+    echo "✓ Speckit constitution created"
+fi
+```
+
+**Check 5: PRD Exists (prerequisite)**
+```bash
+if [ ! -f "product/prd.md" ] && [ ! -f "product/prodkit.prd.md" ]; then
+    echo "⚠️  Warning: PRD not found"
+    echo "Make sure /prodkit.prd was run first"
+else
+    echo "✓ PRD exists"
+fi
+```
+
+**Check 6: Config Updated**
+```bash
+if [ ! -f ".prodkit/config.yml" ]; then
+    echo "❌ Validation failed: Config file not found"
+    exit 1
+fi
+
+echo "✓ Config file exists"
+```
+
+Display validation complete:
+```
+✓ All validation checks passed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Step 7: Confirm Completion
 
 Inform the user:
 - Product architecture created in `product/tech-docs/`

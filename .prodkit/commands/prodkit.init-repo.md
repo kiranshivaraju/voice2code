@@ -27,21 +27,92 @@ Read `product/tech-docs/architecture.md` to understand:
 - Tech stack
 - Language and framework
 
-### Step 2: Check GitHub Personal Access Token
+### Step 2: Get and Store GitHub Personal Access Token
 
-Ask the user if they have a GitHub Personal Access Token (PAT):
+**Check if token already exists:**
 
-If not, guide them to create one:
+Read `.prodkit/.github-token` to see if a token is already stored.
+
+If the file exists and has a token:
+```
+✓ GitHub token found
+```
+
+If not, ask the user for their GitHub Personal Access Token (PAT).
+
+**If user doesn't have a token, guide them:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GITHUB PERSONAL ACCESS TOKEN REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ProdKit needs a GitHub Personal Access Token (PAT) to:
+- Create GitHub repositories
+- Create milestones
+- Create and manage issues
+- Create pull requests
+
+To create a token:
 1. Go to https://github.com/settings/tokens
 2. Click "Generate new token" → "Generate new token (classic)"
 3. Give it a name (e.g., "ProdKit")
 4. Select scopes:
-   - `repo` (all repository permissions)
-   - `workflow` (if using GitHub Actions)
+   ✓ repo (all repository permissions)
+   ✓ workflow (for GitHub Actions)
 5. Click "Generate token"
 6. Copy the token (you won't see it again!)
 
-Store the token securely - we'll use it for GitHub API calls.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Prompt user for token:**
+
+Use the AskUserQuestion tool or prompt:
+- "Please paste your GitHub Personal Access Token:"
+
+**Store the token securely:**
+
+Save the token to `.prodkit/.github-token`:
+
+```bash
+mkdir -p .prodkit
+echo "$GITHUB_TOKEN" > .prodkit/.github-token
+chmod 600 .prodkit/.github-token  # Restrict permissions
+```
+
+**Add to .gitignore:**
+
+Ensure `.prodkit/.github-token` is in `.gitignore` so it's never committed:
+
+```bash
+# Check if already in .gitignore
+if ! grep -q ".prodkit/.github-token" .gitignore; then
+  echo "" >> .gitignore
+  echo "# GitHub token (sensitive)" >> .gitignore
+  echo ".prodkit/.github-token" >> .gitignore
+fi
+```
+
+Display confirmation:
+```
+✓ GitHub token saved securely to .prodkit/.github-token
+✓ Added to .gitignore (will not be committed)
+
+This token will be used for all GitHub API operations.
+```
+
+**Get GitHub username:**
+
+Also ask for the user's GitHub username and store it in `.prodkit/config.yml`:
+
+```yaml
+github:
+  username: "username-here"
+  repo: ""
+```
+
+This avoids asking for it repeatedly.
 
 ### Step 3: Initialize Git Repository
 
@@ -359,34 +430,58 @@ This will set up Speckit in the current directory.
 
 Ask the user:
 - What should the GitHub repository name be? (suggest using project name from config)
-- What is their GitHub username?
 - Should it be public or private?
 - Do they want to create it now or do it manually later?
 
-If they want to create it now, ask for their Personal Access Token.
+**If they want to create it now:**
+
+Read the stored token and username:
+
+```bash
+# Read GitHub token
+GITHUB_TOKEN=$(cat .prodkit/.github-token | tr -d '[:space:]')
+
+# Read username from config (already stored in Step 2)
+GITHUB_USERNAME="[from config.yml]"
+
+# Get repo name from user
+REPO_NAME="[repo-name]"
+PRIVATE="false"  # or "true" for private
+```
 
 **Create the repository using GitHub API:**
 
 ```bash
-# Get inputs from user
-GITHUB_USERNAME="[username]"
-REPO_NAME="[repo-name]"
-GITHUB_TOKEN="[their-PAT]"
-PRIVATE="false"  # or "true" for private
-
 # Create repository via GitHub API
-curl -X POST \
+REPO_RESPONSE=$(curl -s -X POST \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $GITHUB_TOKEN" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/user/repos \
-  -d "{\"name\":\"$REPO_NAME\",\"private\":$PRIVATE,\"description\":\"[Description from PRD]\"}"
+  -d "{\"name\":\"$REPO_NAME\",\"private\":$PRIVATE,\"description\":\"[Description from PRD]\"}")
+
+# Check if successful
+if echo "$REPO_RESPONSE" | jq -e '.html_url' > /dev/null; then
+    echo "✓ Repository created: $(echo "$REPO_RESPONSE" | jq -r '.html_url')"
+else
+    echo "❌ Failed to create repository"
+    echo "$REPO_RESPONSE" | jq -r '.message'
+    exit 1
+fi
 
 # Add remote
 git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
 ```
 
-Check if creation was successful by verifying the response contains the repository URL.
+**Update config with repository info:**
+
+Update `.prodkit/config.yml`:
+
+```yaml
+github:
+  username: "$GITHUB_USERNAME"
+  repo: "$GITHUB_USERNAME/$REPO_NAME"
+```
 
 ### Step 9: Initial Commit
 
@@ -472,7 +567,151 @@ git branch -M main
 git push -u origin main
 ```
 
-### Step 15: Confirm Completion
+### Step 15: Validate Setup
+
+**Run validation checks to ensure all steps completed successfully:**
+
+Display validation in progress:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VALIDATING SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Check 1: GitHub Token**
+```bash
+if [ ! -f ".prodkit/.github-token" ]; then
+    echo "❌ Validation failed: GitHub token file not found"
+    echo "Expected: .prodkit/.github-token"
+    exit 1
+fi
+
+if [ ! -s ".prodkit/.github-token" ]; then
+    echo "❌ Validation failed: GitHub token file is empty"
+    exit 1
+fi
+
+echo "✓ GitHub token file exists"
+```
+
+**Check 2: Token is Valid**
+```bash
+GITHUB_TOKEN=$(cat .prodkit/.github-token | tr -d '[:space:]')
+USER_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/user)
+
+if ! echo "$USER_RESPONSE" | jq -e '.login' > /dev/null 2>&1; then
+    echo "❌ Validation failed: GitHub token is invalid or expired"
+    echo "Response: $(echo "$USER_RESPONSE" | jq -r '.message // "Unknown error"')"
+    echo ""
+    echo "To fix:"
+    echo "1. Generate new token: https://github.com/settings/tokens"
+    echo "2. Save to: .prodkit/.github-token"
+    exit 1
+fi
+
+GITHUB_USERNAME=$(echo "$USER_RESPONSE" | jq -r '.login')
+echo "✓ GitHub token valid (user: $GITHUB_USERNAME)"
+```
+
+**Check 3: Config File Updated**
+```bash
+if [ ! -f ".prodkit/config.yml" ]; then
+    echo "❌ Validation failed: .prodkit/config.yml not found"
+    exit 1
+fi
+
+# Check if username is set
+if ! grep -q "username: \"$GITHUB_USERNAME\"" .prodkit/config.yml && \
+   ! grep -q "username: $GITHUB_USERNAME" .prodkit/config.yml; then
+    echo "⚠️  Warning: GitHub username not set in config.yml"
+fi
+
+echo "✓ Config file exists"
+```
+
+**Check 4: Project Structure**
+```bash
+MISSING_DIRS=()
+
+if [ ! -d "src" ]; then MISSING_DIRS+=("src/"); fi
+if [ ! -d "tests" ]; then MISSING_DIRS+=("tests/"); fi
+if [ ! -d "product" ]; then MISSING_DIRS+=("product/"); fi
+if [ ! -d "sprints" ]; then MISSING_DIRS+=("sprints/"); fi
+
+if [ ${#MISSING_DIRS[@]} -gt 0 ]; then
+    echo "❌ Validation failed: Missing directories: ${MISSING_DIRS[*]}"
+    exit 1
+fi
+
+echo "✓ Project structure created"
+```
+
+**Check 5: .gitignore Configured**
+```bash
+if [ ! -f ".gitignore" ]; then
+    echo "⚠️  Warning: .gitignore not found"
+elif ! grep -q ".prodkit/.github-token" .gitignore; then
+    echo "❌ Validation failed: .gitignore missing .prodkit/.github-token"
+    echo "This is a security risk - token file must be in .gitignore"
+    exit 1
+else
+    echo "✓ .gitignore properly configured"
+fi
+```
+
+**Check 6: GitHub Repository (if created)**
+```bash
+# Only check if repo was created
+if grep -q "repo: \"" .prodkit/config.yml; then
+    REPO=$(grep "repo:" .prodkit/config.yml | sed 's/.*repo: "\(.*\)".*/\1/' | tr -d ' ')
+
+    if [ ! -z "$REPO" ]; then
+        REPO_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/$REPO")
+
+        if echo "$REPO_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+            echo "✓ GitHub repository exists: $REPO"
+
+            # Check for Sprint v1 milestone
+            MILESTONES=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/milestones")
+
+            if echo "$MILESTONES" | jq -e '.[] | select(.title == "Sprint v1")' > /dev/null 2>&1; then
+                echo "✓ Sprint v1 milestone created"
+            else
+                echo "⚠️  Warning: Sprint v1 milestone not found"
+            fi
+        else
+            echo "⚠️  Warning: Could not verify GitHub repository"
+        fi
+    fi
+fi
+```
+
+**Check 7: Git Repository Initialized**
+```bash
+if [ ! -d ".git" ]; then
+    echo "❌ Validation failed: Git repository not initialized"
+    exit 1
+fi
+
+echo "✓ Git repository initialized"
+```
+
+Display validation complete:
+```
+✓ All validation checks passed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**If any critical checks fail, exit with error. If only warnings, continue but show them.**
+
+### Step 16: Confirm Completion
 
 Inform the user:
 - ✓ Project structure created
