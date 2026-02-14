@@ -1,5 +1,6 @@
 import { STTAdapter } from './stt-adapter';
 import { ConfigurationError } from '../types';
+import { OllamaAdapter } from './ollama-adapter';
 
 /**
  * AdapterFactory creates appropriate STTAdapter instances based on endpoint URL
@@ -47,33 +48,6 @@ export class AdapterFactory {
   }
 }
 
-/**
- * Ollama STT Adapter
- *
- * Adapter for Ollama-based STT models (local deployment)
- */
-class OllamaAdapter implements STTAdapter {
-  constructor(private endpointUrl: string) {
-    // endpointUrl will be used in Issue #14 for transcription API calls
-  }
-
-  async transcribe(_audio: Buffer, _options: any): Promise<any> {
-    // TODO: Implementation in Issue #14
-    // Will use this.endpointUrl for API calls
-    console.log(`Transcription not implemented for ${this.endpointUrl}`);
-    throw new Error('Not implemented - see Issue #14');
-  }
-
-  async testConnection(): Promise<boolean> {
-    // TODO: Implementation in Issue #14
-    // Will use this.endpointUrl to test connection
-    return true;
-  }
-
-  getProviderName(): string {
-    return 'ollama';
-  }
-}
 
 /**
  * OpenAI Whisper API Adapter
