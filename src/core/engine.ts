@@ -212,4 +212,25 @@ export class Voice2CodeEngine {
   get isRecording(): boolean {
     return this._recordingState === 'recording';
   }
+
+  /**
+   * Dispose and cleanup resources
+   *
+   * Called when extension is deactivated.
+   * Stops any active recording and cleans up resources.
+   */
+  dispose(): void {
+    // If currently recording, stop it
+    if (this._recordingState === 'recording') {
+      // Don't await, just trigger stop
+      this.stopRecording().catch((error) => {
+        console.error('Error stopping recording during dispose:', error);
+      });
+    }
+
+    // Reset state
+    this._recordingState = 'idle';
+
+    console.log('Voice2CodeEngine disposed');
+  }
 }
