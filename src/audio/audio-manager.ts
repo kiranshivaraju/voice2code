@@ -96,9 +96,8 @@ export class AudioManager {
       }
 
       // Concatenate all audio chunks into single buffer
-      const finalBuffer = this._audioChunks.length > 0
-        ? Buffer.concat(this._audioChunks)
-        : Buffer.alloc(0);
+      const finalBuffer =
+        this._audioChunks.length > 0 ? Buffer.concat(this._audioChunks) : Buffer.alloc(0);
 
       // Clear chunks
       this._audioChunks = [];
@@ -150,9 +149,7 @@ export class AudioManager {
     // Generate chunk every 100ms = 3200 bytes per chunk
     const bytesPerSample = 2; // 16-bit
     const chunkDurationMs = 100;
-    const chunkSize = Math.floor(
-      (config.sampleRate * bytesPerSample * chunkDurationMs) / 1000
-    );
+    const chunkSize = Math.floor((config.sampleRate * bytesPerSample * chunkDurationMs) / 1000);
 
     let interval: NodeJS.Timeout | null = null;
 

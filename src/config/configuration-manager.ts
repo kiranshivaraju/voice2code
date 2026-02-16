@@ -55,7 +55,10 @@ export class ConfigurationManager {
     return {
       url: config.get<string>('endpoint.url', ConfigurationManager.DEFAULTS.endpoint.url),
       model: config.get<string>('endpoint.model', ConfigurationManager.DEFAULTS.endpoint.model),
-      timeout: config.get<number>('endpoint.timeout', ConfigurationManager.DEFAULTS.endpoint.timeout),
+      timeout: config.get<number>(
+        'endpoint.timeout',
+        ConfigurationManager.DEFAULTS.endpoint.timeout
+      ),
       customHeaders: config.get<Record<string, string>>('endpoint.customHeaders'),
     };
   }
@@ -68,7 +71,10 @@ export class ConfigurationManager {
 
     return {
       deviceId: config.get<string>('audio.deviceId', ConfigurationManager.DEFAULTS.audio.deviceId),
-      sampleRate: config.get<number>('audio.sampleRate', ConfigurationManager.DEFAULTS.audio.sampleRate),
+      sampleRate: config.get<number>(
+        'audio.sampleRate',
+        ConfigurationManager.DEFAULTS.audio.sampleRate
+      ),
       format: config.get<'mp3' | 'wav'>('audio.format', ConfigurationManager.DEFAULTS.audio.format),
     };
   }
@@ -80,8 +86,14 @@ export class ConfigurationManager {
     const config = vscode.workspace.getConfiguration(ConfigurationManager.CONFIG_SECTION);
 
     return {
-      showStatusBar: config.get<boolean>('ui.showStatusBar', ConfigurationManager.DEFAULTS.ui.showStatusBar),
-      showNotifications: config.get<boolean>('ui.showNotifications', ConfigurationManager.DEFAULTS.ui.showNotifications),
+      showStatusBar: config.get<boolean>(
+        'ui.showStatusBar',
+        ConfigurationManager.DEFAULTS.ui.showStatusBar
+      ),
+      showNotifications: config.get<boolean>(
+        'ui.showNotifications',
+        ConfigurationManager.DEFAULTS.ui.showNotifications
+      ),
       playBeep: config.get<boolean>('ui.playBeep', ConfigurationManager.DEFAULTS.ui.playBeep),
     };
   }
@@ -109,10 +121,7 @@ export class ConfigurationManager {
     try {
       await this.context.secrets.store(ConfigurationManager.SECRET_KEY_API, key);
     } catch (error) {
-      throw new ConfigurationError(
-        'Failed to store API key in SecretStorage',
-        error
-      );
+      throw new ConfigurationError('Failed to store API key in SecretStorage', error);
     }
   }
 
@@ -123,10 +132,7 @@ export class ConfigurationManager {
     try {
       await this.context.secrets.delete(ConfigurationManager.SECRET_KEY_API);
     } catch (error) {
-      throw new ConfigurationError(
-        'Failed to delete API key from SecretStorage',
-        error
-      );
+      throw new ConfigurationError('Failed to delete API key from SecretStorage', error);
     }
   }
 
@@ -150,7 +156,9 @@ export class ConfigurationManager {
     if (!config.model || config.model.trim().length === 0) {
       errors.push('Model name cannot be empty');
     } else if (!ConfigurationManager.MODEL_NAME_REGEX.test(config.model)) {
-      errors.push('Invalid model name format (use only letters, numbers, dots, underscores, and hyphens)');
+      errors.push(
+        'Invalid model name format (use only letters, numbers, dots, underscores, and hyphens)'
+      );
     }
 
     // Validate timeout
@@ -173,7 +181,11 @@ export class ConfigurationManager {
   private isLocalhost(url: string): boolean {
     try {
       const parsed = new URL(url);
-      return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+      return (
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === '::1'
+      );
     } catch {
       return false;
     }
