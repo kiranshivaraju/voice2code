@@ -1,55 +1,236 @@
 import * as vscode from 'vscode';
+import { ConfigurationManager } from './config/configuration-manager';
+import { DeviceManager } from './audio/device-manager';
+import { AudioManager } from './audio/audio-manager';
+import { AdapterFactory } from './adapters/adapter-factory';
+import { Voice2CodeEngine } from './core/engine';
+import { RecordingState, TranscriptionOptions } from './types';
+
+/**
+ * Global engine instance
+ * Stored globally to allow cleanup in deactivate()
+ */
+let engine: Voice2CodeEngine | undefined;
+
+// Temporary service implementations
+// These will be replaced when the actual services are implemented
+
+class TranscriptionService {
+  constructor(
+    private adapterFactory: AdapterFactory,
+    private configManager: ConfigurationManager
+  ) {}
+
+  async transcribe(audio: Buffer, options: TranscriptionOptions): Promise<{ text: string }> {
+    const config = this.configManager.getEndpointConfig();
+    const adapter = this.adapterFactory.createAdapter(config.url);
+    return adapter.transcribe(audio, options);
+  }
+
+  async testConnection(): Promise<boolean> {
+    const config = this.configManager.getEndpointConfig();
+    const adapter = this.adapterFactory.createAdapter(config.url);
+    return adapter.testConnection();
+  }
+}
+
+class EditorService {
+  getActiveEditor(): vscode.TextEditor | undefined {
+    return vscode.window.activeTextEditor;
+  }
+
+  async insertText(text: string): Promise<boolean> {
+    const editor = this.getActiveEditor();
+    if (!editor) {
+      throw new Error('No active editor');
+    }
+
+    return await editor.edit((editBuilder) => {
+      editor.selections.forEach((selection) => {
+        editBuilder.insert(selection.active, text);
+      });
+    });
+  }
+}
+
+class StatusBarController {
+  private statusBarItem: vscode.StatusBarItem;
+
+  constructor(context: vscode.ExtensionContext) {
+    this.statusBarItem = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      100
+    );
+    context.subscriptions.push(this.statusBarItem);
+    this.updateStatus('Voice2Code', 'idle');
+  }
+
+  updateStatus(text: string, state: RecordingState): void {
+    const { icon, color } = this.getStateAppearance(state);
+    this.statusBarItem.text = `${icon} ${text}`;
+    this.statusBarItem.color = color;
+    this.statusBarItem.show();
+  }
+
+  show(): void {
+    this.statusBarItem.show();
+  }
+
+  hide(): void {
+    this.statusBarItem.hide();
+  }
+
+  private getStateAppearance(state: RecordingState): {
+    icon: string;
+    color: string | undefined;
+  } {
+    switch (state) {
+      case 'recording':
+        return {
+          icon: '$(record)',
+          color: '#ff0000', // Red
+        };
+      case 'processing':
+        return {
+          icon: '$(sync~spin)',
+          color: '#ffcc00', // Yellow
+        };
+      case 'idle':
+      default:
+        return {
+          icon: '$(mic)',
+          color: undefined, // Default/white
+        };
+    }
+  }
+}
 
 /**
  * Extension activation entry point
- * Called when the extension is activated
+ *
+ * Initializes all services and registers commands.
+ * This is called when the extension is activated.
+ *
+ * Architecture:
+ * - Instantiates all service dependencies
+ * - Creates Voice2CodeEngine with dependency injection
+ * - Registers 5 VS Code commands with error handling
+ * - Adds all disposables to context.subscriptions for cleanup
+ *
+ * @param context - VS Code extension context
  */
 export function activate(context: vscode.ExtensionContext): void {
   console.log('Voice2Code extension is now active');
 
-  // Register commands
-  const startRecordingCommand = vscode.commands.registerCommand('voice2code.startRecording', () => {
-    vscode.window.showInformationMessage('Voice2Code: Start Recording');
-    // TODO: Implement recording logic
-  });
+  // Instantiate all service dependencies
+  const configManager = new ConfigurationManager(context);
+  const deviceManager = new DeviceManager();
+  const audioManager = new AudioManager(deviceManager);
+  const adapterFactory = new AdapterFactory();
+  const transcriptionService = new TranscriptionService(adapterFactory, configManager);
+  const editorService = new EditorService();
+  const statusBar = new StatusBarController(context);
 
-  const stopRecordingCommand = vscode.commands.registerCommand('voice2code.stopRecording', () => {
-    vscode.window.showInformationMessage('Voice2Code: Stop Recording');
-    // TODO: Implement stop recording logic
-  });
+  // Create Voice2CodeEngine with all dependencies
+  engine = new Voice2CodeEngine(
+    context,
+    configManager,
+    audioManager,
+    transcriptionService,
+    editorService,
+    statusBar
+  );
 
-  const toggleRecordingCommand = vscode.commands.registerCommand(
-    'voice2code.toggleRecording',
-    () => {
-      vscode.window.showInformationMessage('Voice2Code: Toggle Recording');
-      // TODO: Implement toggle logic
+  // Register voice2code.startRecording command
+  const startRecordingCommand = vscode.commands.registerCommand(
+    'voice2code.startRecording',
+    async () => {
+      try {
+        await engine!.startRecording();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Voice2Code: Failed to start recording - ${message}`);
+      }
     }
   );
 
-  const openSettingsCommand = vscode.commands.registerCommand('voice2code.openSettings', () => {
-    vscode.commands.executeCommand('workbench.action.openSettings', 'voice2code');
-  });
+  // Register voice2code.stopRecording command
+  const stopRecordingCommand = vscode.commands.registerCommand(
+    'voice2code.stopRecording',
+    async () => {
+      try {
+        await engine!.stopRecording();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Voice2Code: Failed to stop recording - ${message}`);
+      }
+    }
+  );
 
-  const testConnectionCommand = vscode.commands.registerCommand('voice2code.testConnection', () => {
-    vscode.window.showInformationMessage('Voice2Code: Testing Connection');
-    // TODO: Implement connection test
-  });
+  // Register voice2code.toggleRecording command
+  const toggleRecordingCommand = vscode.commands.registerCommand(
+    'voice2code.toggleRecording',
+    async () => {
+      try {
+        await engine!.toggleRecording();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Voice2Code: Failed to toggle recording - ${message}`);
+      }
+    }
+  );
 
-  // Add commands to subscriptions
+  // Register voice2code.testConnection command
+  const testConnectionCommand = vscode.commands.registerCommand(
+    'voice2code.testConnection',
+    async () => {
+      try {
+        await engine!.testConnection();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Voice2Code: Connection test failed - ${message}`);
+      }
+    }
+  );
+
+  // Register voice2code.openSettings command
+  const openSettingsCommand = vscode.commands.registerCommand(
+    'voice2code.openSettings',
+    async () => {
+      try {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'voice2code');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        vscode.window.showErrorMessage(`Voice2Code: Failed to open settings - ${message}`);
+      }
+    }
+  );
+
+  // Add all command disposables to context subscriptions for cleanup
   context.subscriptions.push(
     startRecordingCommand,
     stopRecordingCommand,
     toggleRecordingCommand,
-    openSettingsCommand,
-    testConnectionCommand
+    testConnectionCommand,
+    openSettingsCommand
   );
 }
 
 /**
  * Extension deactivation entry point
- * Called when the extension is deactivated
+ *
+ * Cleans up resources when the extension is deactivated.
+ * Disposes the engine and all registered services.
+ *
+ * Note: context.subscriptions are automatically disposed by VS Code,
+ * but we explicitly dispose the engine for proper cleanup.
  */
 export function deactivate(): void {
   console.log('Voice2Code extension is now deactivated');
-  // TODO: Cleanup resources
+
+  // Dispose engine if it exists
+  if (engine) {
+    engine.dispose();
+    engine = undefined;
+  }
 }
