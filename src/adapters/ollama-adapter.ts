@@ -37,16 +37,12 @@ export class OllamaAdapter implements STTAdapter {
       };
 
       // Make request to Ollama API
-      const response = await axios.post(
-        `${this.endpointUrl}/api/generate`,
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: this.DEFAULT_TIMEOUT,
-        }
-      );
+      const response = await axios.post(`${this.endpointUrl}/api/generate`, requestBody, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: this.DEFAULT_TIMEOUT,
+      });
 
       // Validate response structure
       if (!response.data || typeof response.data.response !== 'string') {
@@ -77,14 +73,14 @@ export class OllamaAdapter implements STTAdapter {
       if (err.response?.status) {
         switch (err.response.status) {
           case 404:
-            throw new STTError('Model not found on Ollama server', err.message || 'Model not found');
+            throw new STTError(
+              'Model not found on Ollama server',
+              err.message || 'Model not found'
+            );
           case 500:
             throw new STTError('Ollama server error', err.message || 'Server error');
           default:
-            throw new STTError(
-              `Ollama API error: ${err.response.status}`,
-              err.message
-            );
+            throw new STTError(`Ollama API error: ${err.response.status}`, err.message);
         }
       }
 
@@ -126,7 +122,10 @@ export class OllamaAdapter implements STTAdapter {
       return true;
     } catch (error) {
       // Log error for debugging
-      console.error('Ollama connection test failed:', error instanceof Error ? error.message : error);
+      console.error(
+        'Ollama connection test failed:',
+        error instanceof Error ? error.message : error
+      );
       return false;
     }
   }

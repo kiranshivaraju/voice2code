@@ -60,7 +60,9 @@ export function validateModelName(name: string): ValidationResult {
 
   // Check model name format (prevents path traversal)
   if (!MODEL_NAME_REGEX.test(name)) {
-    errors.push('Invalid model name format (use only letters, numbers, dots, underscores, and hyphens)');
+    errors.push(
+      'Invalid model name format (use only letters, numbers, dots, underscores, and hyphens)'
+    );
     return { valid: false, errors };
   }
 

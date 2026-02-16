@@ -80,7 +80,10 @@ export class AudioEncoder {
     if (pcmBuffer.length === 0) {
       // Return minimal MP3 frame
       return Buffer.from([
-        0xFF, 0xFB, 0x90, 0x00, // MP3 frame header
+        0xff,
+        0xfb,
+        0x90,
+        0x00, // MP3 frame header
       ]);
     }
 
@@ -89,8 +92,8 @@ export class AudioEncoder {
     const mp3Buffer = Buffer.alloc(compressedSize);
 
     // Add MP3 frame header
-    mp3Buffer.writeUInt8(0xFF, 0);
-    mp3Buffer.writeUInt8(0xFB, 1);
+    mp3Buffer.writeUInt8(0xff, 0);
+    mp3Buffer.writeUInt8(0xfb, 1);
 
     // Fill rest with mock encoded data
     for (let i = 2; i < compressedSize; i++) {

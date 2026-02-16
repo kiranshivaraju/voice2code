@@ -4,6 +4,10 @@
   "description": "Privacy-focused speech-to-text extension for IDEs with configurable local and remote model support",
   "version": "0.1.0",
   "publisher": "voice2code",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiranshivaraju/voice2code.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

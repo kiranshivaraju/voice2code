@@ -48,5 +48,3 @@ export class AdapterFactory {
     throw new ConfigurationError('Unsupported STT provider URL');
   }
 }
-
-

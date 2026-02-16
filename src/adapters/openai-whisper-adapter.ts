@@ -95,10 +95,7 @@ export class OpenAIWhisperAdapter implements STTAdapter {
           case 429:
             throw new STTError('Rate limit exceeded', err.message || 'Too many requests');
           default:
-            throw new STTError(
-              `OpenAI Whisper API error: ${err.response.status}`,
-              err.message
-            );
+            throw new STTError(`OpenAI Whisper API error: ${err.response.status}`, err.message);
         }
       }
 
