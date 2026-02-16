@@ -1,6 +1,7 @@
 import { STTAdapter } from './stt-adapter';
 import { ConfigurationError } from '../types';
 import { OllamaAdapter } from './ollama-adapter';
+import { OpenAIWhisperAdapter } from './openai-whisper-adapter';
 
 /**
  * AdapterFactory creates appropriate STTAdapter instances based on endpoint URL
@@ -49,33 +50,3 @@ export class AdapterFactory {
 }
 
 
-/**
- * OpenAI Whisper API Adapter
- *
- * Adapter for OpenAI Whisper API or compatible endpoints (vLLM, etc.)
- */
-class OpenAIWhisperAdapter implements STTAdapter {
-  constructor(
-    private endpointUrl: string,
-    private apiKey?: string
-  ) {
-    // endpointUrl and apiKey will be used in future sprint for API calls
-  }
-
-  async transcribe(_audio: Buffer, _options: any): Promise<any> {
-    // TODO: Implementation in future issue
-    // Will use this.endpointUrl and this.apiKey for API calls
-    console.log(`Transcription not implemented for ${this.endpointUrl} with key: ${this.apiKey ? 'provided' : 'none'}`);
-    throw new Error('Not implemented - planned for future sprint');
-  }
-
-  async testConnection(): Promise<boolean> {
-    // TODO: Implementation in future issue
-    // Will use this.endpointUrl to test connection
-    return true;
-  }
-
-  getProviderName(): string {
-    return 'openai-whisper';
-  }
-}
