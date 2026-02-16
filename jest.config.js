@@ -20,6 +20,6 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: [],
-  testPathIgnorePatterns: ['/node_modules/', '/out/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/out/', '/dist/', '/tests/e2e/'],
   coveragePathIgnorePatterns: ['/node_modules/', '/out/', '/dist/', '/tests/'],
 };
