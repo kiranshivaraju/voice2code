@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { EndpointHealth } from '../types';
+import { isLocalhost } from '../utils/url';
 
 /**
  * NetworkMonitor
@@ -25,7 +26,7 @@ export class NetworkMonitor {
    */
   async isEndpointReachable(url: string, timeoutMs = NetworkMonitor.DEFAULT_TIMEOUT): Promise<EndpointHealth> {
     const start = Date.now();
-    const isLocal = this.isLocalhost(url);
+    const isLocal = isLocalhost(url);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -84,18 +85,6 @@ export class NetworkMonitor {
     }
 
     return false;
-  }
-
-  /**
-   * Check if a URL points to localhost
-   */
-  private isLocalhost(url: string): boolean {
-    try {
-      const parsed = new URL(url);
-      return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
-    } catch {
-      return false;
-    }
   }
 
   /**
