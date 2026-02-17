@@ -76,6 +76,21 @@ export interface AudioDevice {
 }
 
 // ============================================================================
+// Network Interfaces
+// ============================================================================
+
+/**
+ * Result of an endpoint health check
+ */
+export interface EndpointHealth {
+  reachable: boolean;
+  url: string;
+  latencyMs: number | null;
+  checkedAt: Date;
+  isLocalhost: boolean;
+}
+
+// ============================================================================
 // Validation Interfaces
 // ============================================================================
 

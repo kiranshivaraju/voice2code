@@ -72,6 +72,19 @@ export class StatusBarController {
   }
 
   /**
+   * Set warning state on status bar
+   *
+   * Shows warning icon with yellow/orange color.
+   * Used when endpoint is unreachable before recording.
+   * Resets to idle on next successful recording start.
+   */
+  setWarning(): void {
+    this.statusBarItem.text = '$(warning) Voice2Code';
+    this.statusBarItem.color = '#ffcc00';
+    this.statusBarItem.show();
+  }
+
+  /**
    * Show status bar item
    */
   show(): void {

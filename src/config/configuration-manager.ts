@@ -11,6 +11,7 @@ import {
   ValidationResult,
   ConfigurationError,
 } from '../types';
+import { isLocalhost } from '../utils/url';
 
 /**
  * Manages all configuration settings for Voice2Code extension
@@ -153,7 +154,7 @@ export class ConfigurationManager {
       errors.push('Endpoint URL cannot be empty');
     } else if (!ConfigurationManager.URL_REGEX.test(config.url)) {
       errors.push('Invalid endpoint URL format');
-    } else if (config.url.startsWith('http://') && !this.isLocalhost(config.url)) {
+    } else if (config.url.startsWith('http://') && !isLocalhost(config.url)) {
       warnings.push('Using HTTP (non-HTTPS) for remote endpoint is not recommended');
     }
 
@@ -180,19 +181,4 @@ export class ConfigurationManager {
     };
   }
 
-  /**
-   * Check if URL is localhost
-   */
-  private isLocalhost(url: string): boolean {
-    try {
-      const parsed = new URL(url);
-      return (
-        parsed.hostname === 'localhost' ||
-        parsed.hostname === '127.0.0.1' ||
-        parsed.hostname === '::1'
-      );
-    } catch {
-      return false;
-    }
-  }
 }
