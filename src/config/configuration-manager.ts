@@ -25,6 +25,7 @@ export class ConfigurationManager {
       url: 'http://localhost:11434/api/generate',
       model: 'whisper-large-v3',
       timeout: 30000,
+      language: 'en',
     },
     audio: {
       deviceId: 'default',
@@ -59,7 +60,10 @@ export class ConfigurationManager {
         'endpoint.timeout',
         ConfigurationManager.DEFAULTS.endpoint.timeout
       ),
-      language: config.get<string>('endpoint.language', 'en'),
+      language: config.get<string>(
+        'endpoint.language',
+        ConfigurationManager.DEFAULTS.endpoint.language
+      ),
       customHeaders: config.get<Record<string, string>>('endpoint.customHeaders'),
     };
   }
