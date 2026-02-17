@@ -1,9 +1,29 @@
 import { AudioManager } from '../../../src/audio/audio-manager';
 import { DeviceManager } from '../../../src/audio/device-manager';
 import { AudioConfiguration, AudioError } from '../../../src/types';
+import { Readable } from 'stream';
 
 // Mock DeviceManager
 jest.mock('../../../src/audio/device-manager');
+
+// Mock node-record-lpcm16
+jest.mock('node-record-lpcm16');
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const record = require('node-record-lpcm16');
+
+function createMockRecording(): {
+  recording: { stream: jest.Mock; stop: jest.Mock };
+  mockStream: Readable;
+} {
+  const mockStream = new Readable({ read() {} });
+
+  const recording = {
+    stream: jest.fn().mockReturnValue(mockStream),
+    stop: jest.fn(),
+  };
+  return { recording, mockStream };
+}
 
 describe('AudioManager', () => {
   let audioManager: AudioManager;
@@ -16,10 +36,15 @@ describe('AudioManager', () => {
 
     // Create audio manager instance
     audioManager = new AudioManager(mockDeviceManager);
+
+    jest.clearAllMocks();
+    jest.spyOn(console, 'log').mockImplementation();
+    jest.spyOn(console, 'warn').mockImplementation();
+    jest.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -34,13 +59,14 @@ describe('AudioManager', () => {
     });
 
     it('should return true when capturing', async () => {
-      const config: AudioConfiguration = {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture({
         deviceId: 'default',
         sampleRate: 16000,
         format: 'mp3',
-      };
-
-      await audioManager.startCapture(config);
+      });
       expect(audioManager.isCapturing()).toBe(true);
     });
   });
@@ -53,19 +79,87 @@ describe('AudioManager', () => {
     };
 
     it('should start audio capture successfully', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
 
       expect(mockDeviceManager.isDeviceAvailable).toHaveBeenCalledWith('default');
       expect(audioManager.isCapturing()).toBe(true);
     });
 
+    it('should call record.record() with correct sampleRate', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ sampleRate: 16000 })
+      );
+    });
+
+    it('should call record.record() with channels: 1', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ channels: 1 })
+      );
+    });
+
+    it('should call record.record() with device: null when deviceId is default', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ device: null })
+      );
+    });
+
+    it('should pass actual deviceId when not default', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture({
+        deviceId: 'hw:1,0',
+        sampleRate: 16000,
+        format: 'mp3',
+      });
+
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ device: 'hw:1,0' })
+      );
+    });
+
+    it('should call record.record() with audioType raw', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ audioType: 'raw' })
+      );
+    });
+
     it('should verify device availability before starting', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
 
       expect(mockDeviceManager.isDeviceAvailable).toHaveBeenCalledWith('default');
     });
 
     it('should throw AudioError if already capturing', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
 
       await expect(audioManager.startCapture(config)).rejects.toThrow(AudioError);
@@ -80,25 +174,44 @@ describe('AudioManager', () => {
     });
 
     it('should support different sample rates', async () => {
-      const config44k: AudioConfiguration = {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture({
         deviceId: 'default',
         sampleRate: 44100,
         format: 'mp3',
-      };
+      });
 
-      await audioManager.startCapture(config44k);
+      expect(record.record).toHaveBeenCalledWith(
+        expect.objectContaining({ sampleRate: 44100 })
+      );
       expect(audioManager.isCapturing()).toBe(true);
     });
 
-    it('should support different device IDs', async () => {
-      const customConfig: AudioConfiguration = {
-        deviceId: 'custom-device-123',
+    it('should emit deviceFallback event when device unavailable', async () => {
+      mockDeviceManager.isDeviceAvailable
+        .mockResolvedValueOnce(false)  // first call: custom device unavailable
+        .mockResolvedValueOnce(true);  // second call: default is available
+
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      const fallbackHandler = jest.fn();
+      audioManager.on('deviceFallback', fallbackHandler);
+
+      await audioManager.startCapture({
+        deviceId: 'custom-broken-device',
         sampleRate: 16000,
         format: 'mp3',
-      };
+      });
 
-      await audioManager.startCapture(customConfig);
-      expect(mockDeviceManager.isDeviceAvailable).toHaveBeenCalledWith('custom-device-123');
+      expect(fallbackHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          originalId: 'custom-broken-device',
+        })
+      );
+      expect(audioManager.isCapturing()).toBe(true);
     });
   });
 
@@ -109,56 +222,83 @@ describe('AudioManager', () => {
       format: 'mp3',
     };
 
-    beforeEach(async () => {
+    it('should call recording.stop() and return accumulated buffer', async () => {
+      const { recording, mockStream } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
+
+      // Push some data and let the event loop deliver it
+      mockStream.push(Buffer.from([0x01, 0x02, 0x03]));
+      mockStream.push(Buffer.from([0x04, 0x05]));
+      await new Promise(resolve => setImmediate(resolve));
+
+      const buffer = await audioManager.stopCapture();
+
+      expect(recording.stop).toHaveBeenCalled();
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBe(5);
+      expect(buffer).toEqual(Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]));
     });
 
-    it('should stop audio capture and return buffer', async () => {
+    it('should return empty buffer when no data received', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
       const buffer = await audioManager.stopCapture();
 
       expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBe(0);
+    });
+
+    it('should reset state to idle after stopping', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+      await audioManager.stopCapture();
+
       expect(audioManager.isCapturing()).toBe(false);
     });
 
-    it('should return non-empty buffer', async () => {
-      // Simulate some recording time
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const buffer = await audioManager.stopCapture();
-
-      expect(buffer.length).toBeGreaterThan(0);
-    });
-
     it('should throw AudioError if not capturing', async () => {
-      await audioManager.stopCapture(); // Stop first time
-
       await expect(audioManager.stopCapture()).rejects.toThrow(AudioError);
       await expect(audioManager.stopCapture()).rejects.toThrow('Not currently capturing audio');
     });
 
-    it('should reset state to idle after stopping', async () => {
-      await audioManager.stopCapture();
-
-      expect(audioManager.isCapturing()).toBe(false);
-    });
-
     it('should allow starting again after stopping', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
       await audioManager.stopCapture();
 
-      // Should be able to start again
+      const { recording: recording2 } = createMockRecording();
+      record.record.mockReturnValue(recording2);
+
       await audioManager.startCapture(config);
       expect(audioManager.isCapturing()).toBe(true);
     });
 
     it('should clear audio chunks after stopping', async () => {
+      const { recording, mockStream } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
+      mockStream.push(Buffer.from([0x01, 0x02, 0x03]));
+      await new Promise(resolve => setImmediate(resolve));
       const buffer1 = await audioManager.stopCapture();
 
-      // Start and stop again
+      // Start and stop again — should not contain previous data
+      const { recording: recording2 } = createMockRecording();
+      record.record.mockReturnValue(recording2);
+
       await audioManager.startCapture(config);
       const buffer2 = await audioManager.stopCapture();
 
-      // Buffers should be independent (not accumulated)
-      expect(buffer1).not.toBe(buffer2);
+      expect(buffer1.length).toBe(3);
+      expect(buffer2.length).toBe(0);
     });
   });
 
@@ -169,21 +309,41 @@ describe('AudioManager', () => {
       format: 'mp3',
     };
 
-    it('should handle device disconnection during capture', async () => {
+    it('should propagate recorder stream error to AudioManager error event', async () => {
+      const { recording, mockStream } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      const errorHandler = jest.fn();
+      audioManager.on('error', errorHandler);
+
       await audioManager.startCapture(config);
 
-      // Simulate device becoming unavailable
+      // Simulate stream error
+      const testError = new Error('Microphone disconnected');
+      mockStream.destroy(testError);
+
+      // Give event loop a tick
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(errorHandler).toHaveBeenCalledWith(testError);
+    });
+
+    it('should handle device disconnection during capture', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture(config);
       mockDeviceManager.isDeviceAvailable.mockResolvedValue(false);
 
-      // Should still be able to stop
       const buffer = await audioManager.stopCapture();
       expect(buffer).toBeInstanceOf(Buffer);
     });
 
     it('should cleanup resources on stop error', async () => {
-      await audioManager.startCapture(config);
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
 
-      // Even if stop encounters issues, state should be reset
+      await audioManager.startCapture(config);
       await audioManager.stopCapture();
       expect(audioManager.isCapturing()).toBe(false);
     });
@@ -191,27 +351,27 @@ describe('AudioManager', () => {
 
   describe('edge cases', () => {
     it('should handle empty device ID', async () => {
-      const config: AudioConfiguration = {
-        deviceId: '',
-        sampleRate: 16000,
-        format: 'mp3',
-      };
-
       mockDeviceManager.isDeviceAvailable.mockResolvedValue(false);
 
-      await expect(audioManager.startCapture(config)).rejects.toThrow(AudioError);
+      await expect(
+        audioManager.startCapture({
+          deviceId: '',
+          sampleRate: 16000,
+          format: 'mp3',
+        })
+      ).rejects.toThrow(AudioError);
     });
 
     it('should handle rapid start-stop cycles', async () => {
-      const config: AudioConfiguration = {
-        deviceId: 'default',
-        sampleRate: 16000,
-        format: 'mp3',
-      };
-
-      // Multiple rapid cycles
       for (let i = 0; i < 5; i++) {
-        await audioManager.startCapture(config);
+        const { recording } = createMockRecording();
+        record.record.mockReturnValue(recording);
+
+        await audioManager.startCapture({
+          deviceId: 'default',
+          sampleRate: 16000,
+          format: 'mp3',
+        });
         expect(audioManager.isCapturing()).toBe(true);
 
         await audioManager.stopCapture();
@@ -220,17 +380,16 @@ describe('AudioManager', () => {
     });
 
     it('should handle very short recordings', async () => {
-      const config: AudioConfiguration = {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      await audioManager.startCapture({
         deviceId: 'default',
         sampleRate: 16000,
         format: 'mp3',
-      };
+      });
 
-      await audioManager.startCapture(config);
-
-      // Stop immediately without waiting
       const buffer = await audioManager.stopCapture();
-
       expect(buffer).toBeInstanceOf(Buffer);
       expect(audioManager.isCapturing()).toBe(false);
     });
@@ -244,28 +403,26 @@ describe('AudioManager', () => {
     };
 
     it('should maintain correct state through lifecycle', async () => {
-      // Initial: idle
       expect(audioManager.isCapturing()).toBe(false);
 
-      // After start: capturing
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
       expect(audioManager.isCapturing()).toBe(true);
 
-      // After stop: idle
       await audioManager.stopCapture();
       expect(audioManager.isCapturing()).toBe(false);
     });
 
     it('should prevent multiple simultaneous captures', async () => {
+      const { recording } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
       await audioManager.startCapture(config);
-
-      // Try to start again while capturing
       await expect(audioManager.startCapture(config)).rejects.toThrow(AudioError);
-
-      // Should still be in capturing state
       expect(audioManager.isCapturing()).toBe(true);
 
-      // Should be able to stop
       await audioManager.stopCapture();
       expect(audioManager.isCapturing()).toBe(false);
     });
