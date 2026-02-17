@@ -33,6 +33,7 @@ export class OllamaAdapter implements STTAdapter {
         model: this.DEFAULT_MODEL,
         prompt: audioBase64,
         stream: false,
+        ...(options.language && { language: options.language }),
         ...(options.temperature !== undefined && { temperature: options.temperature }),
       };
 

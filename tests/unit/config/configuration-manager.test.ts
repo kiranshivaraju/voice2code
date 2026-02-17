@@ -56,6 +56,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api/generate',
         model: 'whisper-large-v3',
         timeout: 30000,
+        language: 'en',
         customHeaders: undefined,
       });
     });
@@ -65,6 +66,7 @@ describe('ConfigurationManager', () => {
         if (key === 'endpoint.url') return 'http://localhost:8000/transcribe';
         if (key === 'endpoint.model') return 'custom-model';
         if (key === 'endpoint.timeout') return 60000;
+        if (key === 'endpoint.language') return 'fr';
         if (key === 'endpoint.customHeaders') return { 'X-Custom': 'value' };
         return undefined;
       });
@@ -75,8 +77,28 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:8000/transcribe',
         model: 'custom-model',
         timeout: 60000,
+        language: 'fr',
         customHeaders: { 'X-Custom': 'value' },
       });
+    });
+
+    it('should default language to "en" when not configured', () => {
+      mockWorkspaceConfig.get.mockImplementation((_key: string, defaultValue: any) => defaultValue);
+
+      const config = configManager.getEndpointConfig();
+
+      expect(config.language).toBe('en');
+    });
+
+    it('should return user-configured language value', () => {
+      mockWorkspaceConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'endpoint.language') return 'ja';
+        return defaultValue;
+      });
+
+      const config = configManager.getEndpointConfig();
+
+      expect(config.language).toBe('ja');
     });
 
     it('should merge user settings with defaults', () => {
@@ -236,6 +258,7 @@ describe('ConfigurationManager', () => {
         url: 'https://api.openai.com/v1/audio/transcriptions',
         model: 'whisper-1',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -249,6 +272,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api/generate',
         model: 'whisper-large-v3',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -262,6 +286,7 @@ describe('ConfigurationManager', () => {
         url: 'http://example.com/api',
         model: 'test-model',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -276,6 +301,7 @@ describe('ConfigurationManager', () => {
         url: '',
         model: 'test-model',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -289,6 +315,7 @@ describe('ConfigurationManager', () => {
         url: 'not-a-valid-url',
         model: 'test-model',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -302,6 +329,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: '',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -315,6 +343,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: '../malicious',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -328,6 +357,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: 'model name',
         timeout: 30000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -343,6 +373,7 @@ describe('ConfigurationManager', () => {
           url: 'http://localhost:11434/api',
           model,
           timeout: 30000,
+          language: 'en',
         };
 
         const result = configManager.validateEndpointConfig(config);
@@ -355,6 +386,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: 'test-model',
         timeout: 500,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -368,6 +400,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: 'test-model',
         timeout: 400000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -381,6 +414,7 @@ describe('ConfigurationManager', () => {
         url: 'http://localhost:11434/api',
         model: 'test-model',
         timeout: 60000,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);
@@ -393,6 +427,7 @@ describe('ConfigurationManager', () => {
         url: 'invalid-url',
         model: '',
         timeout: 100,
+        language: 'en',
       };
 
       const result = configManager.validateEndpointConfig(config);

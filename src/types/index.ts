@@ -17,6 +17,7 @@ export interface EndpointConfiguration {
   url: string;
   model: string;
   timeout: number;
+  language: string;
   customHeaders?: Record<string, string>;
 }
 

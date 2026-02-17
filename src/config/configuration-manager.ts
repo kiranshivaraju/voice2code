@@ -59,6 +59,7 @@ export class ConfigurationManager {
         'endpoint.timeout',
         ConfigurationManager.DEFAULTS.endpoint.timeout
       ),
+      language: config.get<string>('endpoint.language', 'en'),
       customHeaders: config.get<Record<string, string>>('endpoint.customHeaders'),
     };
   }
