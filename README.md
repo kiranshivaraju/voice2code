@@ -37,8 +37,8 @@ Voice2Code enables developers to dictate code and documentation directly into th
 
 ### Prerequisites
 
-- Node.js 18.x or 20.x
-- VS Code 1.85.0 or later
+- Node.js 20.x or later (**v20.18.1+ required** — v18 incompatible with undici dependency)
+- VS Code 1.85.0 or later (or Cursor IDE)
 - An STT model endpoint (local or remote)
 
 ### Installation
@@ -119,22 +119,64 @@ python -m vllm.entrypoints.openai.api_server \
 
 ## Usage
 
+### Quick Start
+
+1. Install Ollama and pull the Whisper model (see [docs/user-guide.md](docs/user-guide.md))
+2. Install Voice2Code from the marketplace or `.vsix`
+3. Run `Voice2Code: Test Connection` to verify setup
+4. Place cursor in your editor and press `Ctrl+Shift+V` / `Cmd+Shift+V`
+5. Speak — press the shortcut again to stop and insert
+
 ### Basic Dictation
 
 1. Position your cursor where you want to insert text
 2. Press `Ctrl+Shift+V` (or `Cmd+Shift+V` on Mac) to start recording
 3. Speak your content
 4. Press the same shortcut again to stop
-5. Review the transcription in the preview (if enabled)
-6. Press Enter to confirm and insert
+5. The transcription is inserted at the cursor position
 
 ### Commands
 
-- `Voice2Code: Start Recording` - Begin audio capture
-- `Voice2Code: Stop Recording` - End recording and transcribe
-- `Voice2Code: Toggle Recording` - Start/stop with single command
-- `Voice2Code: Open Settings` - Configure extension
-- `Voice2Code: Test Connection` - Verify endpoint connectivity
+| Command | Keyboard Shortcut | Description |
+|---|---|---|
+| `Voice2Code: Start Recording` | — | Begin audio capture |
+| `Voice2Code: Stop Recording` | — | End recording and transcribe |
+| `Voice2Code: Toggle Recording` | `Ctrl+Shift+V` / `Cmd+Shift+V` | Start/stop with single command |
+| `Voice2Code: Open Settings` | — | Configure extension |
+| `Voice2Code: Test Connection` | — | Verify endpoint connectivity |
+
+### Supported STT Providers
+
+| Provider | Endpoint Pattern | Auth Method |
+|---|---|---|
+| **Ollama** (local) | `http://localhost:11434/api/transcribe` | None |
+| **vLLM** (self-hosted) | `http://host:port/v1/audio/transcriptions` | API key (SecretStorage) |
+| **OpenAI Whisper** | `https://api.openai.com/v1/audio/transcriptions` | API key (SecretStorage) |
+
+### Troubleshooting
+
+**Extension does not activate**
+- Trigger a Voice2Code command from the Command Palette to force activation
+- Check VS Code version is ≥ 1.85.0
+
+**Audio device not found**
+- Ensure a microphone is connected and accessible
+- On Linux: install `sox` (`sudo apt-get install sox`) — required by `node-record-lpcm16`
+- On macOS: grant microphone permission when prompted by the OS
+- Check `voice2code.audio.deviceId` setting (default: `default`)
+
+**Connection test fails**
+- Verify your STT endpoint is running: `curl http://localhost:11434` (Ollama)
+- Check `voice2code.endpoint.url` is correct in settings
+- Ensure no firewall blocks the port
+
+**Node.js version error during build**
+- Upgrade to Node.js v20.18.1+ — v18 is incompatible with the `undici` dependency bundled by VS Code
+
+**`Cmd+Shift+V` conflict on macOS**
+- Reassign via `Code → Preferences → Keyboard Shortcuts`, search for `voice2code.toggleRecording`
+
+See [docs/user-guide.md](docs/user-guide.md) for detailed setup instructions.
 
 ## Development
 
