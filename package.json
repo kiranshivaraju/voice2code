@@ -68,6 +68,11 @@
           "default": 30000,
           "description": "Request timeout in milliseconds"
         },
+        "voice2code.endpoint.language": {
+          "type": "string",
+          "default": "en",
+          "description": "ISO 639-1 language code for transcription (e.g. en, fr, de, ja, zh)"
+        },
         "voice2code.audio.deviceId": {
           "type": "string",
           "default": "default",

@@ -107,6 +107,38 @@ describe('OllamaAdapter', () => {
       expect(requestBody.prompt).toBe(audioBuffer.toString('base64'));
     });
 
+    it('should include language in request body when provided', async () => {
+      const mockResponse = {
+        status: 200,
+        data: { response: 'test', done: true },
+      };
+
+      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      await adapter.transcribe(audioBuffer, { language: 'fr' });
+
+      const callArgs = mockedAxios.post.mock.calls[0];
+      const requestBody = callArgs[1] as any;
+
+      expect(requestBody.language).toBe('fr');
+    });
+
+    it('should include language "en" by default in request body', async () => {
+      const mockResponse = {
+        status: 200,
+        data: { response: 'test', done: true },
+      };
+
+      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      await adapter.transcribe(audioBuffer, { language: 'en' });
+
+      const callArgs = mockedAxios.post.mock.calls[0];
+      const requestBody = callArgs[1] as any;
+
+      expect(requestBody.language).toBe('en');
+    });
+
     it('should use model from options if provided', async () => {
       const mockResponse = {
         status: 200,
