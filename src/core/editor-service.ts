@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ValidationError } from '../types';
+import { ValidationError, PreviewResult } from '../types';
 
 /**
  * EditorService
@@ -68,5 +68,39 @@ export class EditorService {
     if (!success) {
       throw new Error('Failed to insert text');
     }
+  }
+
+  /**
+   * Show a preview InputBox with transcribed text and insert on confirmation
+   *
+   * If `voice2code.ui.previewEnabled` is false, inserts directly without preview.
+   * Otherwise, shows an InputBox pre-filled with the transcribed text for
+   * the user to review and edit before inserting.
+   *
+   * @param originalText - The transcribed text to preview
+   * @returns PreviewResult with confirmation status and final text
+   */
+  async showPreviewAndInsert(originalText: string): Promise<PreviewResult> {
+    const config = vscode.workspace.getConfiguration('voice2code');
+    const previewEnabled = config.get<boolean>('ui.previewEnabled', true);
+
+    if (!previewEnabled) {
+      await this.insertText(originalText);
+      return { confirmed: true, text: originalText };
+    }
+
+    const result = await vscode.window.showInputBox({
+      title: 'Voice2Code — Review transcription before inserting',
+      value: originalText,
+      placeHolder: 'Edit transcription or press Enter to confirm',
+    });
+
+    if (result === undefined) {
+      vscode.window.showInformationMessage('Transcription cancelled — nothing inserted.');
+      return { confirmed: false, text: null };
+    }
+
+    await this.insertText(result);
+    return { confirmed: true, text: result };
   }
 }
