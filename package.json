@@ -81,7 +81,10 @@
         "voice2code.audio.format": {
           "type": "string",
           "default": "mp3",
-          "enum": ["mp3", "wav"],
+          "enum": [
+            "mp3",
+            "wav"
+          ],
           "description": "Audio encoding format"
         },
         "voice2code.ui.previewEnabled": {
@@ -133,6 +136,7 @@
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
@@ -142,12 +146,12 @@
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.3",
     "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "@vscode/vsce": "^2.22.0"
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "axios": "^1.6.5",
     "form-data": "^4.0.0",
+    "lamejs": "^1.2.0",
     "node-record-lpcm16": "^1.0.1"
   }
 }

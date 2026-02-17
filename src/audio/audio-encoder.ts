@@ -1,22 +1,22 @@
+import { Mp3Encoder } from 'lamejs';
 import { AudioError } from '../types';
 
 /**
  * AudioEncoder converts raw PCM audio to MP3 or WAV format
  *
  * Features:
- * - MP3 encoding with voice-optimized settings
+ * - MP3 encoding via lamejs (pure-JS LAME encoder, ~1s per minute of audio)
  * - WAV encoding with standard PCM format
- * - Fast encoding (<500ms per minute of audio)
- * - Cross-platform support
+ * - Cross-platform support (no native dependencies)
  *
  * Audio Input Format:
- * - Sample rate: 16000 Hz (configurable)
+ * - Sample rate: 16000 Hz
  * - Channels: Mono (1 channel)
  * - Bit depth: 16-bit PCM
  *
  * Output Formats:
- * - MP3: 64kbps, voice-optimized quality
- * - WAV: Standard PCM with WAV header
+ * - MP3: 128kbps mono via lamejs
+ * - WAV: Standard PCM with 44-byte header
  */
 
 type AudioFormat = 'mp3' | 'wav';
@@ -59,48 +59,52 @@ export class AudioEncoder {
   }
 
   /**
-   * Encode PCM audio to MP3 format
+   * Encode PCM audio to MP3 format using lamejs
    *
-   * In a real implementation, this would use a library like:
-   * - @suldashi/lame (Node.js LAME bindings)
-   * - node-lame
-   * - fluent-ffmpeg (if FFmpeg is available)
+   * Uses the lamejs pure-JavaScript LAME encoder — no native binaries
+   * or ffmpeg required. Encodes mono 16-bit PCM at 128kbps.
    *
-   * For now, we create a mock MP3 buffer for testing.
-   * The mock simulates compression by returning a smaller buffer.
-   *
-   * @param pcmBuffer - Raw PCM audio
+   * @param pcmBuffer - Raw 16-bit PCM audio (mono, 16kHz)
    * @returns MP3-encoded buffer
    */
   private async encodeToMP3(pcmBuffer: Buffer): Promise<Buffer> {
-    // Mock MP3 encoding
-    // Real implementation would use LAME encoder
-    // MP3 compression ratio is typically 10:1 for voice at 64kbps
+    const sampleRate = 16000;
+    const mp3encoder = new Mp3Encoder(1, sampleRate, 128);
+    const blockSize = 1152;
+    const mp3Chunks: Int8Array[] = [];
 
-    if (pcmBuffer.length === 0) {
-      // Return minimal MP3 frame
-      return Buffer.from([
-        0xff,
-        0xfb,
-        0x90,
-        0x00, // MP3 frame header
-      ]);
+    // Convert Buffer to Int16Array (handle odd byte lengths by truncating)
+    const byteLength = pcmBuffer.length - (pcmBuffer.length % 2);
+    const samples = new Int16Array(
+      pcmBuffer.buffer,
+      pcmBuffer.byteOffset,
+      byteLength / 2
+    );
+
+    // Encode in blocks of 1152 samples (MP3 frame size)
+    for (let i = 0; i < samples.length; i += blockSize) {
+      const chunk = samples.subarray(i, Math.min(i + blockSize, samples.length));
+      const encoded = mp3encoder.encodeBuffer(chunk);
+      if (encoded.length > 0) {
+        mp3Chunks.push(encoded);
+      }
     }
 
-    // Simulate MP3 compression (10:1 ratio)
-    const compressedSize = Math.max(Math.floor(pcmBuffer.length / 10), 4);
-    const mp3Buffer = Buffer.alloc(compressedSize);
-
-    // Add MP3 frame header
-    mp3Buffer.writeUInt8(0xff, 0);
-    mp3Buffer.writeUInt8(0xfb, 1);
-
-    // Fill rest with mock encoded data
-    for (let i = 2; i < compressedSize; i++) {
-      mp3Buffer.writeUInt8(0x00, i);
+    const flushed = mp3encoder.flush();
+    if (flushed.length > 0) {
+      mp3Chunks.push(flushed);
     }
 
-    return mp3Buffer;
+    // Concatenate all MP3 chunks into a single Buffer
+    const totalLength = mp3Chunks.reduce((sum, c) => sum + c.length, 0);
+    const result = Buffer.allocUnsafe(totalLength);
+    let offset = 0;
+    for (const chunk of mp3Chunks) {
+      result.set(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength), offset);
+      offset += chunk.length;
+    }
+
+    return result;
   }
 
   /**
