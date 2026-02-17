@@ -52,6 +52,14 @@ export interface TranscriptionOptions {
 }
 
 /**
+ * Result of the transcription preview confirmation flow
+ */
+export interface PreviewResult {
+  confirmed: boolean;
+  text: string | null;
+}
+
+/**
  * Result from transcription service
  */
 export interface TranscriptionResult {

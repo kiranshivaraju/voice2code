@@ -36,6 +36,7 @@ class MockConfigurationManager {
       url: 'http://localhost:11434',
       model: 'whisper',
       timeout: 30000,
+      language: 'en',
     };
   }
 }
