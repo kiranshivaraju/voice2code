@@ -265,6 +265,16 @@ describe('StatusBarController', () => {
     });
   });
 
+  describe('setWarning', () => {
+    it('should set warning icon and color', () => {
+      controller.setWarning();
+
+      expect(mockStatusBarItem.text).toBe('$(warning) Voice2Code');
+      expect(mockStatusBarItem.color).toBe('#ffcc00');
+      expect(mockStatusBarItem.show).toHaveBeenCalled();
+    });
+  });
+
   describe('lifecycle', () => {
     it('should initialize → update → dispose correctly', () => {
       // Already initialized in beforeEach
