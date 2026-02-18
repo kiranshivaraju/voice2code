@@ -5,60 +5,106 @@ import axios from 'axios';
 /**
  * Ollama STT Adapter
  *
- * Implements STTAdapter for Ollama-based speech-to-text models.
- * Supports local Ollama deployments with Whisper models.
+ * Implements STTAdapter for Ollama with audio support (audio-support fork).
+ * Uses /api/chat with audio field for audio transcription.
+ *
+ * API format:
+ *   POST /api/chat
+ *   { model, messages: [{ role: "user", content: "Transcribe this audio.", audio: [base64_wav] }] }
+ *
+ * Audio must be WAV format (base64 encoded).
  */
 export class OllamaAdapter implements STTAdapter {
-  private readonly DEFAULT_TIMEOUT = 30000; // 30 seconds
-  private readonly DEFAULT_MODEL = 'whisper-large-v3';
+  private readonly DEFAULT_TIMEOUT = 120000; // 120 seconds (audio models are slow)
+  private readonly DEFAULT_MODEL = 'qwen2-audio';
 
   constructor(private endpointUrl: string) {}
 
   /**
-   * Transcribe audio to text using Ollama API
+   * Encode raw PCM buffer to WAV format in-memory
    *
-   * @param audio - Audio data as Buffer
-   * @param options - Transcription options (language, temperature, etc.)
+   * @param pcmBuffer - Raw 16-bit PCM audio (mono, 16kHz)
+   * @returns WAV-encoded buffer with 44-byte header
+   */
+  private encodeToWAV(pcmBuffer: Buffer): Buffer {
+    const headerSize = 44;
+    const dataSize = pcmBuffer.length;
+    const fileSize = headerSize + dataSize - 8;
+
+    const wavBuffer = Buffer.alloc(headerSize + dataSize);
+
+    wavBuffer.write('RIFF', 0, 4, 'ascii');
+    wavBuffer.writeUInt32LE(fileSize, 4);
+    wavBuffer.write('WAVE', 8, 4, 'ascii');
+    wavBuffer.write('fmt ', 12, 4, 'ascii');
+    wavBuffer.writeUInt32LE(16, 16);
+    wavBuffer.writeUInt16LE(1, 20);    // PCM format
+    wavBuffer.writeUInt16LE(1, 22);    // Mono
+    wavBuffer.writeUInt32LE(16000, 24); // Sample rate
+    wavBuffer.writeUInt32LE(32000, 28); // Byte rate
+    wavBuffer.writeUInt16LE(2, 32);    // Block align
+    wavBuffer.writeUInt16LE(16, 34);   // Bits per sample
+    wavBuffer.write('data', 36, 4, 'ascii');
+    wavBuffer.writeUInt32LE(dataSize, 40);
+
+    pcmBuffer.copy(wavBuffer, 44);
+    return wavBuffer;
+  }
+
+  /**
+   * Transcribe audio to text using Ollama /api/chat with audio support
+   *
+   * @param audio - Raw PCM audio data as Buffer (16-bit, mono, 16kHz)
+   * @param options - Transcription options (model, language, temperature)
    * @returns Transcription result with text
    * @throws STTError for API errors (404, 500)
    * @throws NetworkError for connection/timeout errors
    */
   async transcribe(audio: Buffer, options: TranscriptionOptions): Promise<TranscriptionResult> {
     try {
-      // Convert audio buffer to base64
-      const audioBase64 = audio.toString('base64');
+      // Encode raw PCM to WAV and convert to base64
+      const wavBuffer = this.encodeToWAV(audio);
+      const audioBase64 = wavBuffer.toString('base64');
 
-      // Prepare request body
+      // Build transcription prompt
+      let prompt = 'Transcribe this audio.';
+      if (options.language) {
+        prompt = `Transcribe this audio in ${options.language}.`;
+      }
+
+      // Prepare chat request body (Ollama audio-support fork format)
       const requestBody = {
-        model: this.DEFAULT_MODEL,
-        prompt: audioBase64,
+        model: options.model || this.DEFAULT_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+            audio: [audioBase64],
+          },
+        ],
         stream: false,
-        ...(options.language && { language: options.language }),
-        ...(options.temperature !== undefined && { temperature: options.temperature }),
+        ...(options.temperature !== undefined && {
+          options: { temperature: options.temperature },
+        }),
       };
 
-      // Make request to Ollama API
-      const response = await axios.post(`${this.endpointUrl}/api/generate`, requestBody, {
+      // Make request to Ollama /api/chat
+      const response = await axios.post(`${this.endpointUrl}/api/chat`, requestBody, {
         headers: {
           'Content-Type': 'application/json',
         },
         timeout: this.DEFAULT_TIMEOUT,
       });
 
-      // Validate response structure
-      if (!response.data || typeof response.data.response !== 'string') {
+      // Validate chat response structure
+      if (!response.data?.message || typeof response.data.message.content !== 'string') {
         throw new STTError('Invalid response format from Ollama server');
       }
 
-      // Extract transcription
+      // Extract transcription from chat response
       const transcriptionResult: TranscriptionResult = {
-        text: response.data.response,
+        text: response.data.message.content,
       };
-
-      // Include language if provided by server
-      if (response.data.language) {
-        transcriptionResult.language = response.data.language;
-      }
 
       return transcriptionResult;
     } catch (error) {

@@ -12,6 +12,7 @@ module.exports = {
   devtool: 'source-map',
   externals: {
     vscode: 'commonjs vscode',
+    'node-record-lpcm16': 'commonjs node-record-lpcm16',
   },
   resolve: {
     extensions: ['.ts', '.js'],

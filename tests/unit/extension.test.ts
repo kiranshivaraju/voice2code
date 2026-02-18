@@ -193,10 +193,10 @@ describe('Extension', () => {
       );
     });
 
-    it('should register exactly 7 commands', () => {
+    it('should register exactly 9 commands', () => {
       activate(mockContext);
 
-      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(7);
+      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(9);
     });
 
     it('should add all command disposables to context.subscriptions', () => {
@@ -467,7 +467,7 @@ describe('Extension', () => {
       expect(Voice2CodeEngine).toHaveBeenCalled();
 
       // Verify all commands are registered
-      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(7);
+      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(9);
 
       // Verify subscriptions are populated
       expect(mockContext.subscriptions.length).toBeGreaterThan(0);

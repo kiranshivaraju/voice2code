@@ -43,15 +43,6 @@ Voice2Code enables developers to dictate code and documentation directly into th
 
 ### Installation
 
-#### From VS Code Marketplace
-
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
-3. Search for "Voice2Code"
-4. Click Install
-
-#### From Source
-
 ```bash
 # Clone the repository
 git clone https://github.com/kiranshivaraju/voice2code.git
@@ -66,117 +57,180 @@ npm run compile
 # Package the extension
 npm run package
 
-# Install the .vsix file in VS Code
+# Install the .vsix file in VS Code / Cursor
 code --install-extension voice2code-*.vsix
+# Or for Cursor: cursor --install-extension voice2code-*.vsix
 ```
+
+Alternatively, open VS Code/Cursor → Extensions (Cmd+Shift+X) → click `...` → **Install from VSIX...** → select the built `.vsix` file.
 
 ### Configuration
 
-1. Open VS Code Settings (Ctrl+, / Cmd+,)
-2. Search for "Voice2Code"
-3. Configure your STT endpoint:
+1. Open Command Palette (Cmd+Shift+P) → "Voice2Code: Open Settings"
+2. Set your endpoint URL and model
+3. If using a cloud provider, set your API key: Cmd+Shift+P → "Voice2Code: Set API Key"
+4. Click "Test Connection" to verify
+
+### System Dependency
+
+Voice2Code requires **sox** for audio capture:
+
+```bash
+# macOS
+brew install sox
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install sox
+
+# Linux (Fedora)
+sudo dnf install sox
+```
+
+---
+
+## Supported Providers
+
+### 1. Groq (Recommended - Free, Cloud)
+
+The fastest and easiest way to get started. Free tier available, no local setup needed.
+
+**Setup:**
+1. Get a free API key at [console.groq.com](https://console.groq.com)
+2. Configure Voice2Code:
+
+| Setting | Value |
+|---|---|
+| **Endpoint URL** | `https://api.groq.com/openai/v1/audio/transcriptions` |
+| **Model** | `whisper-large-v3` |
+| **API Key** | Your Groq key (`gsk_...`) |
 
 ```json
 {
-  "voice2code.endpoint.url": "http://localhost:11434/api/transcribe",
-  "voice2code.endpoint.model": "whisper-large-v3",
-  "voice2code.endpoint.timeout": 30000,
-  "voice2code.audio.format": "mp3",
-  "voice2code.ui.previewEnabled": true
+  "voice2code.endpoint.url": "https://api.groq.com/openai/v1/audio/transcriptions",
+  "voice2code.endpoint.model": "whisper-large-v3"
+}
+```
+Then set your API key: Cmd+Shift+P → "Voice2Code: Set API Key"
+
+---
+
+### 2. OpenAI (Cloud, Paid)
+
+Uses OpenAI's Whisper API directly. Reliable and accurate.
+
+**Setup:**
+1. Get an API key at [platform.openai.com](https://platform.openai.com)
+2. Configure Voice2Code:
+
+| Setting | Value |
+|---|---|
+| **Endpoint URL** | `https://api.openai.com/v1/audio/transcriptions` |
+| **Model** | `whisper-1` |
+| **API Key** | Your OpenAI key (`sk-...`) |
+
+```json
+{
+  "voice2code.endpoint.url": "https://api.openai.com/v1/audio/transcriptions",
+  "voice2code.endpoint.model": "whisper-1"
 }
 ```
 
-### Setting Up Local STT Model
+---
 
-#### Option 1: Ollama
+### 3. vLLM (Local, Free)
 
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
+Serve Whisper models locally with vLLM. OpenAI-compatible API, no API key needed.
 
-# Pull Whisper model
-ollama pull whisper
-
-# Configure Voice2Code to use Ollama
-# Set endpoint.url to: http://localhost:11434/api/generate
-# Set endpoint.model to: whisper
-```
-
-#### Option 2: vLLM
+**Setup:**
 
 ```bash
-# Install vLLM
-pip install vllm
+# Install vLLM with audio support
+pip install -U "vllm[audio]"
 
-# Start vLLM server with Whisper
-python -m vllm.entrypoints.openai.api_server \
-  --model openai/whisper-large-v3
-
-# Configure Voice2Code
-# Set endpoint.url to: http://localhost:8000/v1/audio/transcriptions
-# Set endpoint.model to: whisper-large-v3
+# Serve a Whisper model
+vllm serve openai/whisper-large-v3
 ```
+
+| Setting | Value |
+|---|---|
+| **Endpoint URL** | `http://localhost:8000/v1/audio/transcriptions` |
+| **Model** | `openai/whisper-large-v3` |
+| **API Key** | Not required |
+
+```json
+{
+  "voice2code.endpoint.url": "http://localhost:8000/v1/audio/transcriptions",
+  "voice2code.endpoint.model": "openai/whisper-large-v3"
+}
+```
+
+Available models: `openai/whisper-small`, `openai/whisper-large-v3`, `openai/whisper-large-v3-turbo`
+
+> **Note:** vLLM has a 30-second audio limit per request. For normal voice dictation this is fine.
+
+---
+
+### Provider Comparison
+
+| Provider | Local | Free | Speed | Accuracy | Setup |
+|---|---|---|---|---|---|
+| **Groq** | No | Yes (free tier) | Very fast | High | 2 min |
+| **OpenAI** | No | No ($0.006/min) | Fast | High | 2 min |
+| **vLLM** | Yes | Yes | Medium | High | 10 min |
 
 ## Usage
 
 ### Quick Start
 
-1. Install Ollama and pull the Whisper model (see [docs/user-guide.md](docs/user-guide.md))
-2. Install Voice2Code from the marketplace or `.vsix`
-3. Run `Voice2Code: Test Connection` to verify setup
-4. Place cursor in your editor and press `Ctrl+Shift+V` / `Cmd+Shift+V`
-5. Speak — press the shortcut again to stop and insert
+1. Install Voice2Code from the marketplace or `.vsix`
+2. Install sox: `brew install sox` (macOS) or `sudo apt-get install sox` (Linux)
+3. Set up a provider (see [Supported Providers](#supported-providers) above)
+4. Set your API key if needed: Cmd+Shift+P → "Voice2Code: Set API Key"
+5. Run "Voice2Code: Test Connection" to verify setup
+6. Press `Cmd+Shift+V` to record, speak, press again to stop and insert
 
-### Basic Dictation
+### Text Insertion
 
-1. Position your cursor where you want to insert text
-2. Press `Ctrl+Shift+V` (or `Cmd+Shift+V` on Mac) to start recording
-3. Speak your content
-4. Press the same shortcut again to stop
-5. The transcription is inserted at the cursor position
+Transcribed text is inserted wherever your cursor is:
+
+- **Text editor** → inserted at cursor position
+- **Terminal** → sent to active terminal
+- **Extension panels** (Claude Code, search boxes, etc.) → pasted via clipboard
 
 ### Commands
 
 | Command | Keyboard Shortcut | Description |
 |---|---|---|
+| `Voice2Code: Toggle Recording` | `Ctrl+Shift+V` / `Cmd+Shift+V` | Start/stop recording |
 | `Voice2Code: Start Recording` | — | Begin audio capture |
 | `Voice2Code: Stop Recording` | — | End recording and transcribe |
-| `Voice2Code: Toggle Recording` | `Ctrl+Shift+V` / `Cmd+Shift+V` | Start/stop with single command |
-| `Voice2Code: Open Settings` | — | Configure extension |
+| `Voice2Code: Open Settings` | — | Open settings panel |
 | `Voice2Code: Test Connection` | — | Verify endpoint connectivity |
-
-### Supported STT Providers
-
-| Provider | Endpoint Pattern | Auth Method |
-|---|---|---|
-| **Ollama** (local) | `http://localhost:11434/api/transcribe` | None |
-| **vLLM** (self-hosted) | `http://host:port/v1/audio/transcriptions` | API key (SecretStorage) |
-| **OpenAI Whisper** | `https://api.openai.com/v1/audio/transcriptions` | API key (SecretStorage) |
+| `Voice2Code: Set API Key` | — | Store API key securely |
+| `Voice2Code: Delete API Key` | — | Remove stored API key |
+| `Voice2Code: Show History` | — | View transcription history |
+| `Voice2Code: Clear History` | — | Delete all history |
 
 ### Troubleshooting
 
-**Extension does not activate**
-- Trigger a Voice2Code command from the Command Palette to force activation
-- Check VS Code version is ≥ 1.85.0
-
-**Audio device not found**
-- Ensure a microphone is connected and accessible
-- On Linux: install `sox` (`sudo apt-get install sox`) — required by `node-record-lpcm16`
-- On macOS: grant microphone permission when prompted by the OS
-- Check `voice2code.audio.deviceId` setting (default: `default`)
+**"No such recorder found: rec/sox"**
+- Install sox: `brew install sox` (macOS) or `sudo apt-get install sox` (Linux)
 
 **Connection test fails**
-- Verify your STT endpoint is running: `curl http://localhost:11434` (Ollama)
-- Check `voice2code.endpoint.url` is correct in settings
-- Ensure no firewall blocks the port
+- Verify your endpoint is running (e.g. `curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer $GROQ_API_KEY"`)
+- Check that your API key is set: Cmd+Shift+P → "Voice2Code: Set API Key"
+- Ensure the endpoint URL is correct in settings
 
-**Node.js version error during build**
-- Upgrade to Node.js v20.18.1+ — v18 is incompatible with the `undici` dependency bundled by VS Code
+**"No active editor or terminal"**
+- Click inside a file, terminal, or extension panel before stopping the recording
+
+**Audio device not found**
+- Ensure a microphone is connected
+- On macOS: grant microphone permission when prompted by the OS
+- On Linux: check `sox` is installed and working (`rec test.wav`)
 
 **`Cmd+Shift+V` conflict on macOS**
-- Reassign via `Code → Preferences → Keyboard Shortcuts`, search for `voice2code.toggleRecording`
-
-See [docs/user-guide.md](docs/user-guide.md) for detailed setup instructions.
+- Reassign via Preferences → Keyboard Shortcuts, search for `voice2code.toggleRecording`
 
 ## Development
 

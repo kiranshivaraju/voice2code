@@ -49,6 +49,14 @@
       {
         "command": "voice2code.clearHistory",
         "title": "Voice2Code: Clear History"
+      },
+      {
+        "command": "voice2code.setApiKey",
+        "title": "Voice2Code: Set API Key"
+      },
+      {
+        "command": "voice2code.deleteApiKey",
+        "title": "Voice2Code: Delete API Key"
       }
     ],
     "keybindings": [
@@ -63,8 +71,8 @@
       "properties": {
         "voice2code.endpoint.url": {
           "type": "string",
-          "default": "http://localhost:11434/api/transcribe",
-          "description": "STT model endpoint URL"
+          "default": "http://localhost:11434",
+          "description": "STT model endpoint base URL (e.g. http://localhost:11434 for Ollama)"
         },
         "voice2code.endpoint.model": {
           "type": "string",

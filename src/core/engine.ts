@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConfigurationManager } from '../config/configuration-manager';
+import { AudioEncoder } from '../audio/audio-encoder';
 import { RecordingState, TranscriptionOptions } from '../types';
 
 /**
@@ -19,7 +20,7 @@ import { RecordingState, TranscriptionOptions } from '../types';
 // Temporary interface definitions for dependencies not yet implemented
 // These will be replaced when the actual components are implemented
 interface AudioManager {
-  startCapture(config: any): void;
+  startCapture(config: any): Promise<void>;
   stopCapture(): Promise<Buffer>;
   isCapturing(): boolean;
 }
@@ -42,6 +43,7 @@ interface StatusBarController {
 
 export class Voice2CodeEngine {
   private _recordingState: RecordingState = 'idle';
+  private audioEncoder = new AudioEncoder();
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -78,8 +80,16 @@ export class Voice2CodeEngine {
     // Update status bar
     this.statusBar.updateStatus('Recording...', 'recording');
 
-    // Start audio capture
-    this.audioManager.startCapture(audioConfig);
+    try {
+      // Start audio capture
+      console.log('Voice2Code: starting audio capture...');
+      await this.audioManager.startCapture(audioConfig);
+      console.log('Voice2Code: audio capture started successfully');
+    } catch (error) {
+      // Reset status bar on failure
+      this.statusBar.updateStatus('Voice2Code', 'idle');
+      throw error;
+    }
 
     // Update state
     this._recordingState = 'recording';
@@ -125,12 +135,21 @@ export class Voice2CodeEngine {
       this._recordingState = 'processing';
 
       // Check if buffer is valid
-      if (!audioBuffer) {
+      if (!audioBuffer || audioBuffer.length === 0) {
         throw new Error('No audio data captured');
       }
 
-      // Transcribe audio
-      const result = await this.transcriptionService.transcribe(audioBuffer, {});
+      // Encode raw PCM to configured format (mp3/wav)
+      const audioConfig = this.configManager.getAudioConfig();
+      const encodedAudio = await this.audioEncoder.encode(audioBuffer, audioConfig.format);
+      console.log(`Voice2Code: encoded ${audioBuffer.length} bytes PCM → ${encodedAudio.length} bytes ${audioConfig.format}`);
+
+      // Transcribe encoded audio with config values
+      const endpointConfig = this.configManager.getEndpointConfig();
+      const result = await this.transcriptionService.transcribe(encodedAudio, {
+        model: endpointConfig.model,
+        language: endpointConfig.language,
+      });
 
       // Insert text into editor
       await this.editorService.insertText(result.text);

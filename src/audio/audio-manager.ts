@@ -71,12 +71,25 @@ export class AudioManager extends EventEmitter {
 
     this._audioChunks = [];
 
+    // Ensure Homebrew/common binary paths are in PATH
+    // VS Code's extension host inherits a minimal PATH that may not include them
+    const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin'];
+    const currentPath = process.env.PATH || '';
+    for (const p of extraPaths) {
+      if (!currentPath.includes(p)) {
+        process.env.PATH = `${p}:${currentPath}`;
+      }
+    }
+
     // Start real recording via node-record-lpcm16
+    // Use 'rec' on macOS (part of sox), 'sox' elsewhere
+    const recorder = process.platform === 'darwin' ? 'rec' : 'sox';
     this._recording = record.record({
       sampleRate: config.sampleRate,
       channels: 1,
       device: deviceId === 'default' ? null : deviceId,
       audioType: 'raw',
+      recorder,
     });
 
     // Listen for data on the recording stream

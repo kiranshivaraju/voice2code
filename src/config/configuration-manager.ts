@@ -42,7 +42,8 @@ export class ConfigurationManager {
 
   // Validation regex patterns
   private static readonly URL_REGEX = /^https?:\/\/[a-zA-Z0-9.-]+(:[0-9]{1,5})?(\/.*)?$/;
-  private static readonly MODEL_NAME_REGEX = /^[a-zA-Z0-9._-]+$/;
+  private static readonly MODEL_NAME_REGEX = /^[a-zA-Z0-9._\/-]+$/;
+  private static readonly MODEL_NAME_TRAVERSAL_REGEX = /\.\./;
   private static readonly TIMEOUT_MIN = 1000;
   private static readonly TIMEOUT_MAX = 300000;
 
@@ -163,8 +164,10 @@ export class ConfigurationManager {
       errors.push('Model name cannot be empty');
     } else if (!ConfigurationManager.MODEL_NAME_REGEX.test(config.model)) {
       errors.push(
-        'Invalid model name format (use only letters, numbers, dots, underscores, and hyphens)'
+        'Invalid model name format (use only letters, numbers, dots, underscores, hyphens, and slashes)'
       );
+    } else if (ConfigurationManager.MODEL_NAME_TRAVERSAL_REGEX.test(config.model)) {
+      errors.push('Model name cannot contain path traversal (..)');
     }
 
     // Validate timeout

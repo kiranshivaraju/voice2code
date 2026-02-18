@@ -159,7 +159,7 @@ describe('Voice2CodeEngine', () => {
       expect(mockAudioManager.stopCapture).toHaveBeenCalled();
       expect(mockTranscriptionService.transcribe).toHaveBeenCalledWith(
         expect.any(Buffer),
-        {}
+        { model: 'whisper', language: 'en' }
       );
       expect(mockEditorService.insertText).toHaveBeenCalledWith('transcribed text');
       expect(mockStatusBar.updateStatus).toHaveBeenNthCalledWith(2, 'Inserted', 'idle');

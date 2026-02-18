@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { EndpointHealth } from '../types';
+import { AdapterFactory } from '../adapters/adapter-factory';
 
 /**
  * Dependency interfaces for constructor injection
@@ -8,12 +8,14 @@ interface DeviceManager {
   getDevices(): Promise<Array<{ id: string; name: string; isDefault: boolean }>>;
 }
 
-interface NetworkMonitor {
-  isEndpointReachable(url: string): Promise<EndpointHealth>;
-}
-
 interface HistoryManager {
   clear(): Promise<void>;
+}
+
+interface ConfigurationManager {
+  getApiKey(): Promise<string | undefined>;
+  setApiKey(key: string): Promise<void>;
+  deleteApiKey(): Promise<void>;
 }
 
 /**
@@ -43,8 +45,8 @@ export class SettingsPanelProvider {
   constructor(
     private context: vscode.ExtensionContext,
     private deviceManager: DeviceManager,
-    private networkMonitor: NetworkMonitor,
-    private historyManager: HistoryManager
+    private historyManager: HistoryManager,
+    private configManager?: ConfigurationManager
   ) {}
 
   /**
@@ -102,12 +104,33 @@ export class SettingsPanelProvider {
       case 'testConnection': {
         const config = vscode.workspace.getConfiguration(SettingsPanelProvider.CONFIG_SECTION);
         const url = config.get<string>('endpoint.url', '');
-        const health = await this.networkMonitor.isEndpointReachable(url);
-        this.panel?.webview.postMessage({
-          type: 'connectionResult',
-          success: health.reachable,
-          latencyMs: health.latencyMs,
-        });
+        try {
+          const apiKey = this.configManager ? await this.configManager.getApiKey() : undefined;
+          const factory = new AdapterFactory();
+          const adapter = factory.createAdapter(url, apiKey);
+          const success = await adapter.testConnection();
+          this.panel?.webview.postMessage({
+            type: 'connectionResult',
+            success,
+          });
+        } catch {
+          this.panel?.webview.postMessage({
+            type: 'connectionResult',
+            success: false,
+          });
+        }
+        break;
+      }
+      case 'setApiKey': {
+        if (this.configManager && typeof msg.value === 'string') {
+          await this.configManager.setApiKey(msg.value);
+        }
+        break;
+      }
+      case 'deleteApiKey': {
+        if (this.configManager) {
+          await this.configManager.deleteApiKey();
+        }
         break;
       }
       case 'clearHistory': {
@@ -172,6 +195,12 @@ export class SettingsPanelProvider {
   <div class="field">
     <label for="endpoint.timeout">Timeout (ms)</label>
     <input id="endpoint.timeout" type="number" aria-label="Timeout in milliseconds" value="${settings['endpoint.timeout'] ?? 30000}" />
+  </div>
+  <div class="field">
+    <label for="apiKey">API Key</label>
+    <input id="apiKey" type="password" aria-label="API Key" placeholder="gsk_... or sk-..." />
+    <button id="btn-save-api-key" aria-label="Save API Key">Save</button>
+    <button id="btn-delete-api-key" aria-label="Delete API Key">Delete</button>
   </div>
   <div class="field">
     <button id="btn-test-connection" aria-label="Test Connection">Test Connection</button>
@@ -249,6 +278,20 @@ export class SettingsPanelProvider {
     });
 
     // Buttons
+    document.getElementById('btn-save-api-key').addEventListener('click', () => {
+      const key = document.getElementById('apiKey').value;
+      if (key) {
+        vscode.postMessage({ type: 'setApiKey', value: key });
+        document.getElementById('apiKey').value = '';
+        document.getElementById('apiKey').placeholder = 'Key saved securely';
+      }
+    });
+
+    document.getElementById('btn-delete-api-key').addEventListener('click', () => {
+      vscode.postMessage({ type: 'deleteApiKey' });
+      document.getElementById('apiKey').placeholder = 'Key deleted';
+    });
+
     document.getElementById('btn-test-connection').addEventListener('click', () => {
       vscode.postMessage({ type: 'testConnection' });
       document.getElementById('connection-result').textContent = 'Testing...';
@@ -269,7 +312,7 @@ export class SettingsPanelProvider {
       if (msg.type === 'connectionResult') {
         const el = document.getElementById('connection-result');
         if (msg.success) {
-          el.textContent = 'Connected (' + msg.latencyMs + 'ms)';
+          el.textContent = 'Connected';
           el.className = 'result success';
         } else {
           el.textContent = 'Failed' + (msg.error ? ': ' + msg.error : '');

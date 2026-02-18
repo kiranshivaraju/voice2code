@@ -47,6 +47,7 @@ export interface UIConfiguration {
  * Options for transcription requests
  */
 export interface TranscriptionOptions {
+  model?: string;
   language?: string;
   temperature?: number;
 }
@@ -127,6 +128,7 @@ export interface EndpointHealth {
   latencyMs: number | null;
   checkedAt: Date;
   isLocalhost: boolean;
+  statusCode: number | null;
 }
 
 // ============================================================================

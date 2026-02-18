@@ -32,14 +32,15 @@ export class NetworkMonitor {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      await fetch(url, { method: 'HEAD', signal: controller.signal });
+      const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
 
       return {
-        reachable: true,
+        reachable: response.ok,
         url,
         latencyMs: Date.now() - start,
         checkedAt: new Date(),
         isLocalhost: isLocal,
+        statusCode: response.status,
       };
     } catch {
       return {
@@ -48,6 +49,7 @@ export class NetworkMonitor {
         latencyMs: null,
         checkedAt: new Date(),
         isLocalhost: isLocal,
+        statusCode: null,
       };
     } finally {
       clearTimeout(timer);

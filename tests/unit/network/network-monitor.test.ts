@@ -21,8 +21,8 @@ describe('NetworkMonitor', () => {
   });
 
   describe('isEndpointReachable', () => {
-    it('should return reachable: true with latencyMs when endpoint responds', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+    it('should return reachable: true with latencyMs when endpoint responds 200', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await monitor.isEndpointReachable('http://localhost:11434');
 
@@ -31,6 +31,17 @@ describe('NetworkMonitor', () => {
       expect(typeof result.latencyMs).toBe('number');
       expect(result.latencyMs).toBeGreaterThanOrEqual(0);
       expect(result.checkedAt).toBeInstanceOf(Date);
+      expect(result.statusCode).toBe(200);
+    });
+
+    it('should return reachable: false when endpoint responds with 404', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const result = await monitor.isEndpointReachable('http://localhost:11434/api/transcribe');
+
+      expect(result.reachable).toBe(false);
+      expect(result.statusCode).toBe(404);
+      expect(typeof result.latencyMs).toBe('number');
     });
 
     it('should return reachable: false and latencyMs: null when endpoint fails', async () => {
@@ -40,6 +51,7 @@ describe('NetworkMonitor', () => {
 
       expect(result.reachable).toBe(false);
       expect(result.latencyMs).toBeNull();
+      expect(result.statusCode).toBeNull();
       expect(result.checkedAt).toBeInstanceOf(Date);
     });
 
@@ -60,7 +72,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should set isLocalhost: true for localhost URLs', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await monitor.isEndpointReachable('http://localhost:11434');
 
@@ -68,7 +80,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should set isLocalhost: true for 127.0.0.1 URLs', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await monitor.isEndpointReachable('http://127.0.0.1:11434');
 
@@ -76,7 +88,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should set isLocalhost: false for remote URLs', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await monitor.isEndpointReachable('https://api.openai.com/v1');
 
@@ -84,7 +96,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should use HEAD method for the request', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       await monitor.isEndpointReachable('http://localhost:11434');
 
@@ -95,7 +107,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should pass AbortController signal to fetch', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       await monitor.isEndpointReachable('http://localhost:11434');
 
@@ -106,7 +118,7 @@ describe('NetworkMonitor', () => {
     });
 
     it('should default timeout to 3000ms', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       // We can't directly test the timeout value, but we verify the call works
       const result = await monitor.isEndpointReachable('http://localhost:11434');
@@ -117,7 +129,7 @@ describe('NetworkMonitor', () => {
 
   describe('checkAndNotify', () => {
     it('should return true and show no notification when reachable', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await monitor.checkAndNotify('http://localhost:11434');
 

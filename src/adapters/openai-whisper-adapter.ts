@@ -35,7 +35,7 @@ export class OpenAIWhisperAdapter implements STTAdapter {
         filename: 'audio.mp3',
         contentType: 'audio/mpeg',
       });
-      formData.append('model', this.DEFAULT_MODEL);
+      formData.append('model', options.model || this.DEFAULT_MODEL);
 
       // Add optional parameters
       if (options.language) {

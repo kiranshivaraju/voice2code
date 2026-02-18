@@ -5,7 +5,6 @@ import { AudioManager } from './audio/audio-manager';
 import { AdapterFactory } from './adapters/adapter-factory';
 import { Voice2CodeEngine } from './core/engine';
 import { HistoryManager } from './core/history-manager';
-import { NetworkMonitor } from './network/network-monitor';
 import { SettingsPanelProvider } from './ui/settings-panel';
 import { RecordingState, TranscriptionOptions } from './types';
 
@@ -26,13 +25,15 @@ class TranscriptionService {
 
   async transcribe(audio: Buffer, options: TranscriptionOptions): Promise<{ text: string }> {
     const config = this.configManager.getEndpointConfig();
-    const adapter = this.adapterFactory.createAdapter(config.url);
+    const apiKey = await this.configManager.getApiKey();
+    const adapter = this.adapterFactory.createAdapter(config.url, apiKey);
     return adapter.transcribe(audio, options);
   }
 
   async testConnection(): Promise<boolean> {
     const config = this.configManager.getEndpointConfig();
-    const adapter = this.adapterFactory.createAdapter(config.url);
+    const apiKey = await this.configManager.getApiKey();
+    const adapter = this.adapterFactory.createAdapter(config.url, apiKey);
     return adapter.testConnection();
   }
 }
@@ -43,16 +44,28 @@ class EditorService {
   }
 
   async insertText(text: string): Promise<boolean> {
+    // Try text editor first
     const editor = this.getActiveEditor();
-    if (!editor) {
-      throw new Error('No active editor');
+    if (editor) {
+      return await editor.edit((editBuilder) => {
+        editor.selections.forEach((selection) => {
+          editBuilder.insert(selection.active, text);
+        });
+      });
     }
 
-    return await editor.edit((editBuilder) => {
-      editor.selections.forEach((selection) => {
-        editBuilder.insert(selection.active, text);
-      });
-    });
+    // Fall back to active terminal
+    const terminal = vscode.window.activeTerminal;
+    if (terminal) {
+      terminal.sendText(text, false); // false = don't append newline
+      return true;
+    }
+
+    // Universal fallback: copy to clipboard and paste into whatever has focus
+    // Works with extension webviews (Claude Code, etc.), search boxes, etc.
+    await vscode.env.clipboard.writeText(text);
+    await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+    return true;
   }
 }
 
@@ -133,9 +146,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const transcriptionService = new TranscriptionService(adapterFactory, configManager);
   const editorService = new EditorService();
   const statusBar = new StatusBarController(context);
-  const networkMonitor = new NetworkMonitor();
   const historyManager = new HistoryManager(context, editorService as any);
-  const settingsPanel = new SettingsPanelProvider(context, deviceManager, networkMonitor, historyManager);
+  const settingsPanel = new SettingsPanelProvider(context, deviceManager, historyManager, configManager);
 
   // Create Voice2CodeEngine with all dependencies
   engine = new Voice2CodeEngine(
@@ -231,6 +243,32 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
+  // Register voice2code.setApiKey command
+  const setApiKeyCommand = vscode.commands.registerCommand(
+    'voice2code.setApiKey',
+    async () => {
+      const key = await vscode.window.showInputBox({
+        prompt: 'Enter your STT API key (e.g. Groq, OpenAI)',
+        password: true,
+        placeHolder: 'gsk_... or sk-...',
+        ignoreFocusOut: true,
+      });
+      if (key) {
+        await configManager.setApiKey(key);
+        vscode.window.showInformationMessage('API key saved securely');
+      }
+    }
+  );
+
+  // Register voice2code.deleteApiKey command
+  const deleteApiKeyCommand = vscode.commands.registerCommand(
+    'voice2code.deleteApiKey',
+    async () => {
+      await configManager.deleteApiKey();
+      vscode.window.showInformationMessage('API key deleted');
+    }
+  );
+
   // Add all command disposables to context subscriptions for cleanup
   context.subscriptions.push(
     startRecordingCommand,
@@ -239,7 +277,9 @@ export function activate(context: vscode.ExtensionContext): void {
     testConnectionCommand,
     openSettingsCommand,
     showHistoryCommand,
-    clearHistoryCommand
+    clearHistoryCommand,
+    setApiKeyCommand,
+    deleteApiKeyCommand
   );
 }
 

@@ -349,7 +349,7 @@ describe('ConfigurationManager', () => {
       const result = configManager.validateEndpointConfig(config);
 
       expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('Invalid model name format');
+      expect(result.errors[0]).toContain('path traversal');
     });
 
     it('should fail validation for model name with spaces', () => {

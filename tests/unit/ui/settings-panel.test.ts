@@ -19,6 +19,15 @@ jest.mock('vscode', () => ({
   },
 }));
 
+// Mock AdapterFactory
+jest.mock('../../../src/adapters/adapter-factory', () => ({
+  AdapterFactory: jest.fn().mockImplementation(() => ({
+    createAdapter: jest.fn().mockReturnValue({
+      testConnection: jest.fn().mockResolvedValue(true),
+    }),
+  })),
+}));
+
 // Mock crypto.randomUUID
 const mockRandomUUID = jest.fn().mockReturnValue('test-nonce-abc123');
 Object.defineProperty(globalThis, 'crypto', {
@@ -29,8 +38,8 @@ describe('SettingsPanelProvider', () => {
   let provider: SettingsPanelProvider;
   let mockContext: vscode.ExtensionContext;
   let mockDeviceManager: { getDevices: jest.Mock };
-  let mockNetworkMonitor: { isEndpointReachable: jest.Mock };
   let mockHistoryManager: { clear: jest.Mock };
+  let mockConfigManager: { getApiKey: jest.Mock; setApiKey: jest.Mock; deleteApiKey: jest.Mock };
   let mockPanel: any;
   let mockWebview: any;
   let messageHandler: (msg: any) => void;
@@ -72,15 +81,14 @@ describe('SettingsPanelProvider', () => {
       ]),
     };
 
-    mockNetworkMonitor = {
-      isEndpointReachable: jest.fn().mockResolvedValue({
-        reachable: true,
-        latencyMs: 42,
-      }),
-    };
-
     mockHistoryManager = {
       clear: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mockConfigManager = {
+      getApiKey: jest.fn().mockResolvedValue('test-api-key'),
+      setApiKey: jest.fn().mockResolvedValue(undefined),
+      deleteApiKey: jest.fn().mockResolvedValue(undefined),
     };
 
     mockConfig = {
@@ -108,8 +116,8 @@ describe('SettingsPanelProvider', () => {
     provider = new SettingsPanelProvider(
       mockContext,
       mockDeviceManager as any,
-      mockNetworkMonitor as any,
-      mockHistoryManager as any
+      mockHistoryManager as any,
+      mockConfigManager as any
     );
   });
 
@@ -173,10 +181,12 @@ describe('SettingsPanelProvider', () => {
       expect(mockConfig.update).toHaveBeenCalledWith('endpoint.url', 'http://new-url', true);
     });
 
-    it('should call networkMonitor.isEndpointReachable on testConnection message', async () => {
+    it('should test connection via adapter on testConnection message', async () => {
       await messageHandler({ type: 'testConnection' });
 
-      expect(mockNetworkMonitor.isEndpointReachable).toHaveBeenCalled();
+      expect(mockWebview.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'connectionResult', success: true })
+      );
     });
 
     it('should call historyManager.clear on clearHistory message', async () => {

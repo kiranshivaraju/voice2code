@@ -62,11 +62,14 @@ describe('OllamaAdapter', () => {
       temperature: 0.0,
     };
 
-    it('should transcribe audio successfully', async () => {
+    it('should transcribe audio via /api/chat with audio field', async () => {
       const mockResponse = {
         status: 200,
         data: {
-          response: 'This is the transcribed text',
+          message: {
+            role: 'assistant',
+            content: 'This is the transcribed text',
+          },
           done: true,
         },
       };
@@ -77,10 +80,16 @@ describe('OllamaAdapter', () => {
 
       expect(result.text).toBe('This is the transcribed text');
       expect(mockedAxios.post).toHaveBeenCalledWith(
-        `${testEndpoint}/api/generate`,
+        `${testEndpoint}/api/chat`,
         expect.objectContaining({
-          model: 'whisper-large-v3',
+          model: 'qwen2-audio',
           stream: false,
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              role: 'user',
+              audio: expect.any(Array),
+            }),
+          ]),
         }),
         expect.objectContaining({
           headers: { 'Content-Type': 'application/json' },
@@ -88,11 +97,11 @@ describe('OllamaAdapter', () => {
       );
     });
 
-    it('should convert audio buffer to base64', async () => {
+    it('should encode audio as WAV and send base64 in audio field', async () => {
       const mockResponse = {
         status: 200,
         data: {
-          response: 'test',
+          message: { role: 'assistant', content: 'test' },
           done: true,
         },
       };
@@ -103,14 +112,21 @@ describe('OllamaAdapter', () => {
 
       const callArgs = mockedAxios.post.mock.calls[0];
       const requestBody = callArgs[1] as any;
+      const audioData = requestBody.messages[0].audio[0];
 
-      expect(requestBody.prompt).toBe(audioBuffer.toString('base64'));
+      // Decode and verify it's a WAV (starts with RIFF header)
+      const decoded = Buffer.from(audioData, 'base64');
+      expect(decoded.toString('ascii', 0, 4)).toBe('RIFF');
+      expect(decoded.toString('ascii', 8, 12)).toBe('WAVE');
     });
 
-    it('should include language in request body when provided', async () => {
+    it('should include language in prompt when provided', async () => {
       const mockResponse = {
         status: 200,
-        data: { response: 'test', done: true },
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
       };
 
       mockedAxios.post.mockResolvedValue(mockResponse);
@@ -120,40 +136,83 @@ describe('OllamaAdapter', () => {
       const callArgs = mockedAxios.post.mock.calls[0];
       const requestBody = callArgs[1] as any;
 
-      expect(requestBody.language).toBe('fr');
+      expect(requestBody.messages[0].content).toContain('fr');
     });
 
-    it('should include language "en" by default in request body', async () => {
+    it('should use default prompt when no language specified', async () => {
       const mockResponse = {
         status: 200,
-        data: { response: 'test', done: true },
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
       };
 
       mockedAxios.post.mockResolvedValue(mockResponse);
 
-      await adapter.transcribe(audioBuffer, { language: 'en' });
+      await adapter.transcribe(audioBuffer, {});
 
       const callArgs = mockedAxios.post.mock.calls[0];
       const requestBody = callArgs[1] as any;
 
-      expect(requestBody.language).toBe('en');
+      expect(requestBody.messages[0].content).toBe('Transcribe this audio.');
     });
 
     it('should use model from options if provided', async () => {
       const mockResponse = {
         status: 200,
-        data: { response: 'test', done: true },
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
       };
 
       mockedAxios.post.mockResolvedValue(mockResponse);
 
-      const optionsWithModel = { ...options };
-      await adapter.transcribe(audioBuffer, optionsWithModel);
+      await adapter.transcribe(audioBuffer, { model: 'custom-audio-model' });
 
       const callArgs = mockedAxios.post.mock.calls[0];
       const requestBody = callArgs[1] as any;
 
-      expect(requestBody.model).toBe('whisper-large-v3');
+      expect(requestBody.model).toBe('custom-audio-model');
+    });
+
+    it('should use default model when not specified', async () => {
+      const mockResponse = {
+        status: 200,
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
+      };
+
+      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      await adapter.transcribe(audioBuffer, {});
+
+      const callArgs = mockedAxios.post.mock.calls[0];
+      const requestBody = callArgs[1] as any;
+
+      expect(requestBody.model).toBe('qwen2-audio');
+    });
+
+    it('should include temperature in options when provided', async () => {
+      const mockResponse = {
+        status: 200,
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
+      };
+
+      mockedAxios.post.mockResolvedValue(mockResponse);
+
+      await adapter.transcribe(audioBuffer, { temperature: 0.5 });
+
+      const callArgs = mockedAxios.post.mock.calls[0];
+      const requestBody = callArgs[1] as any;
+
+      expect(requestBody.options.temperature).toBe(0.5);
     });
 
     it('should throw STTError when model not found (404)', async () => {
@@ -210,7 +269,7 @@ describe('OllamaAdapter', () => {
       mockedAxios.post.mockResolvedValue({
         status: 200,
         data: {
-          response: '',
+          message: { role: 'assistant', content: '' },
           done: true,
         },
       });
@@ -220,7 +279,7 @@ describe('OllamaAdapter', () => {
       expect(result.text).toBe('');
     });
 
-    it('should handle malformed response', async () => {
+    it('should handle malformed response (missing message)', async () => {
       mockedAxios.post.mockResolvedValue({
         status: 200,
         data: {},
@@ -229,35 +288,32 @@ describe('OllamaAdapter', () => {
       await expect(adapter.transcribe(audioBuffer, options)).rejects.toThrow(STTError);
     });
 
-    it('should include language in result if provided by server', async () => {
+    it('should handle malformed response (missing content)', async () => {
       mockedAxios.post.mockResolvedValue({
         status: 200,
         data: {
-          response: 'test',
-          done: true,
-          language: 'en',
+          message: { role: 'assistant' },
         },
       });
 
-      const result = await adapter.transcribe(audioBuffer, options);
-
-      expect(result.language).toBe('en');
+      await expect(adapter.transcribe(audioBuffer, options)).rejects.toThrow(STTError);
     });
 
-    it('should set timeout from configuration', async () => {
-      const adapterWithTimeout = new OllamaAdapter(testEndpoint);
-
+    it('should set timeout to 120 seconds for audio processing', async () => {
       mockedAxios.post.mockResolvedValue({
         status: 200,
-        data: { response: 'test', done: true },
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
       });
 
-      await adapterWithTimeout.transcribe(audioBuffer, options);
+      await adapter.transcribe(audioBuffer, options);
 
       const callArgs = mockedAxios.post.mock.calls[0];
       const config = callArgs[2] as any;
 
-      expect(config.timeout).toBeDefined();
+      expect(config.timeout).toBe(120000);
     });
   });
 
@@ -267,7 +323,10 @@ describe('OllamaAdapter', () => {
 
       mockedAxios.post.mockResolvedValue({
         status: 200,
-        data: { response: 'test', done: true },
+        data: {
+          message: { role: 'assistant', content: 'test' },
+          done: true,
+        },
       });
 
       const result = await adapter.transcribe(largeBuffer, {});
@@ -280,7 +339,10 @@ describe('OllamaAdapter', () => {
 
       mockedAxios.post.mockResolvedValue({
         status: 200,
-        data: { response: '', done: true },
+        data: {
+          message: { role: 'assistant', content: '' },
+          done: true,
+        },
       });
 
       const result = await adapter.transcribe(emptyBuffer, {});
