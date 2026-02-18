@@ -41,6 +41,14 @@
       {
         "command": "voice2code.testConnection",
         "title": "Voice2Code: Test Connection"
+      },
+      {
+        "command": "voice2code.showHistory",
+        "title": "Voice2Code: Show History"
+      },
+      {
+        "command": "voice2code.clearHistory",
+        "title": "Voice2Code: Clear History"
       }
     ],
     "keybindings": [
