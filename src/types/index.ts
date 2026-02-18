@@ -60,6 +60,37 @@ export interface TranscriptionResult {
   language?: string;
 }
 
+/**
+ * Result of the transcription preview confirmation flow
+ */
+export interface PreviewResult {
+  confirmed: boolean;
+  text: string | null;
+}
+
+// ============================================================================
+// History Interfaces
+// ============================================================================
+
+/**
+ * Single transcription history entry
+ */
+export interface HistoryEntry {
+  id: string;
+  text: string;
+  timestamp: number;
+  language: string;
+  durationMs: number;
+}
+
+/**
+ * Persisted history store structure
+ */
+export interface HistoryStore {
+  version: number;
+  entries: HistoryEntry[];
+}
+
 // ============================================================================
 // Audio Interfaces
 // ============================================================================

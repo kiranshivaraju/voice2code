@@ -4,6 +4,7 @@ import { DeviceManager } from './audio/device-manager';
 import { AudioManager } from './audio/audio-manager';
 import { AdapterFactory } from './adapters/adapter-factory';
 import { Voice2CodeEngine } from './core/engine';
+import { HistoryManager } from './core/history-manager';
 import { RecordingState, TranscriptionOptions } from './types';
 
 /**
@@ -131,6 +132,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const editorService = new EditorService();
   const statusBar = new StatusBarController(context);
 
+  // Create HistoryManager
+  const historyManager = new HistoryManager(context, editorService as any);
+
   // Create Voice2CodeEngine with all dependencies
   engine = new Voice2CodeEngine(
     context,
@@ -206,13 +210,34 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
+  // Register voice2code.showHistory command
+  const showHistoryCommand = vscode.commands.registerCommand(
+    'voice2code.showHistory',
+    () => historyManager.showHistory()
+  );
+
+  // Register voice2code.clearHistory command
+  const clearHistoryCommand = vscode.commands.registerCommand(
+    'voice2code.clearHistory',
+    async () => {
+      const choice = await vscode.window.showWarningMessage(
+        'Clear all transcription history?', 'Clear', 'Cancel'
+      );
+      if (choice === 'Clear') {
+        await historyManager.clear();
+      }
+    }
+  );
+
   // Add all command disposables to context subscriptions for cleanup
   context.subscriptions.push(
     startRecordingCommand,
     stopRecordingCommand,
     toggleRecordingCommand,
     testConnectionCommand,
-    openSettingsCommand
+    openSettingsCommand,
+    showHistoryCommand,
+    clearHistoryCommand
   );
 }
 

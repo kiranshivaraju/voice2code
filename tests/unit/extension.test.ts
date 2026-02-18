@@ -6,7 +6,11 @@ jest.mock('vscode', () => ({
   window: {
     showInformationMessage: jest.fn(),
     showErrorMessage: jest.fn(),
+    showWarningMessage: jest.fn(),
     createStatusBarItem: jest.fn(),
+  },
+  workspace: {
+    getConfiguration: jest.fn().mockReturnValue({ get: jest.fn() }),
   },
   commands: {
     registerCommand: jest.fn(),
@@ -25,6 +29,7 @@ jest.mock('../../src/audio/audio-manager');
 jest.mock('../../src/audio/audio-encoder');
 jest.mock('../../src/adapters/adapter-factory');
 jest.mock('../../src/core/engine');
+jest.mock('../../src/core/history-manager');
 
 import { ConfigurationManager } from '../../src/config/configuration-manager';
 import { DeviceManager } from '../../src/audio/device-manager';
@@ -179,10 +184,10 @@ describe('Extension', () => {
       );
     });
 
-    it('should register exactly 5 commands', () => {
+    it('should register exactly 7 commands', () => {
       activate(mockContext);
 
-      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(5);
+      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(7);
     });
 
     it('should add all command disposables to context.subscriptions', () => {
@@ -454,7 +459,7 @@ describe('Extension', () => {
       expect(Voice2CodeEngine).toHaveBeenCalled();
 
       // Verify all commands are registered
-      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(5);
+      expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(7);
 
       // Verify subscriptions are populated
       expect(mockContext.subscriptions.length).toBeGreaterThan(0);
