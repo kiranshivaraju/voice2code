@@ -5,6 +5,8 @@ import { AudioManager } from './audio/audio-manager';
 import { AdapterFactory } from './adapters/adapter-factory';
 import { Voice2CodeEngine } from './core/engine';
 import { HistoryManager } from './core/history-manager';
+import { NetworkMonitor } from './network/network-monitor';
+import { SettingsPanelProvider } from './ui/settings-panel';
 import { RecordingState, TranscriptionOptions } from './types';
 
 /**
@@ -131,9 +133,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const transcriptionService = new TranscriptionService(adapterFactory, configManager);
   const editorService = new EditorService();
   const statusBar = new StatusBarController(context);
-
-  // Create HistoryManager
+  const networkMonitor = new NetworkMonitor();
   const historyManager = new HistoryManager(context, editorService as any);
+  const settingsPanel = new SettingsPanelProvider(context, deviceManager, networkMonitor, historyManager);
 
   // Create Voice2CodeEngine with all dependencies
   engine = new Voice2CodeEngine(
@@ -197,12 +199,12 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
-  // Register voice2code.openSettings command
+  // Register voice2code.openSettings command (opens Webview panel)
   const openSettingsCommand = vscode.commands.registerCommand(
     'voice2code.openSettings',
     async () => {
       try {
-        await vscode.commands.executeCommand('workbench.action.openSettings', 'voice2code');
+        await settingsPanel.openOrReveal();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`Voice2Code: Failed to open settings - ${message}`);

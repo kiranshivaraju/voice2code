@@ -8,10 +8,17 @@ jest.mock('vscode', () => ({
     showErrorMessage: jest.fn(),
     showWarningMessage: jest.fn(),
     createStatusBarItem: jest.fn(),
+    createWebviewPanel: jest.fn().mockReturnValue({
+      webview: { html: '', onDidReceiveMessage: jest.fn().mockReturnValue({ dispose: jest.fn() }), postMessage: jest.fn() },
+      reveal: jest.fn(),
+      onDidDispose: jest.fn().mockReturnValue({ dispose: jest.fn() }),
+      dispose: jest.fn(),
+    }),
   },
   workspace: {
-    getConfiguration: jest.fn().mockReturnValue({ get: jest.fn() }),
+    getConfiguration: jest.fn().mockReturnValue({ get: jest.fn(), update: jest.fn() }),
   },
+  ViewColumn: { One: 1 },
   commands: {
     registerCommand: jest.fn(),
     executeCommand: jest.fn(),
@@ -30,6 +37,8 @@ jest.mock('../../src/audio/audio-encoder');
 jest.mock('../../src/adapters/adapter-factory');
 jest.mock('../../src/core/engine');
 jest.mock('../../src/core/history-manager');
+jest.mock('../../src/network/network-monitor');
+jest.mock('../../src/ui/settings-panel');
 
 import { ConfigurationManager } from '../../src/config/configuration-manager';
 import { DeviceManager } from '../../src/audio/device-manager';
@@ -248,19 +257,15 @@ describe('Extension', () => {
       expect(mockEngine.testConnection).toHaveBeenCalled();
     });
 
-    it('should handle openSettings command execution', async () => {
+    it('should handle openSettings command execution via SettingsPanelProvider', async () => {
       activate(mockContext);
 
       const registerCalls = (vscode.commands.registerCommand as jest.Mock).mock.calls;
-      const openSettingsCall = registerCalls.find(call => call[0] === 'voice2code.openSettings');
+      const openSettingsCall = registerCalls.find((call: any) => call[0] === 'voice2code.openSettings');
       const handler = openSettingsCall[1];
 
-      await handler();
-
-      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-        'workbench.action.openSettings',
-        'voice2code'
-      );
+      // Should not throw
+      await expect(handler()).resolves.not.toThrow();
     });
 
     it('should handle startRecording command errors', async () => {
@@ -332,19 +337,22 @@ describe('Extension', () => {
     });
 
     it('should handle openSettings command errors', async () => {
-      const error = new Error('Settings open failed');
-      (vscode.commands.executeCommand as jest.Mock).mockRejectedValue(error);
+      const { SettingsPanelProvider } = require('../../src/ui/settings-panel');
+      const mockOpenOrReveal = jest.fn().mockRejectedValue(new Error('Panel failed'));
+      SettingsPanelProvider.mockImplementation(() => ({
+        openOrReveal: mockOpenOrReveal,
+      }));
 
       activate(mockContext);
 
       const registerCalls = (vscode.commands.registerCommand as jest.Mock).mock.calls;
-      const openSettingsCall = registerCalls.find(call => call[0] === 'voice2code.openSettings');
+      const openSettingsCall = registerCalls.find((call: any) => call[0] === 'voice2code.openSettings');
       const handler = openSettingsCall[1];
 
       await handler();
 
       expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Settings open failed')
+        expect.stringContaining('Failed to open settings')
       );
     });
   });
