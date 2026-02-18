@@ -1,21 +1,20 @@
 # Voice2Code
 
-Privacy-focused speech-to-text extension for IDEs with configurable local and remote model support.
+Open-source speech-to-text extension for IDEs. Run models locally with vLLM or use cloud providers like Groq and OpenAI.
 
 [![CI](https://github.com/kiranshivaraju/voice2code/actions/workflows/ci.yml/badge.svg)](https://github.com/kiranshivaraju/voice2code/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/kiranshivaraju/voice2code/branch/main/graph/badge.svg)](https://codecov.io/gh/kiranshivaraju/voice2code)
 
 ## Overview
 
-Voice2Code enables developers to dictate code and documentation directly into their IDE using local or self-hosted speech-to-text models. Built with privacy as a core principle, all audio processing happens on user-configured endpoints—no cloud dependencies, no data collection.
+Voice2Code enables developers to dictate code and documentation directly into their IDE using speech-to-text models. Run Whisper locally with vLLM for full privacy, or connect to cloud providers like Groq (free) and OpenAI for a quick setup.
 
 ### Key Features
 
-- **Privacy First**: Audio never leaves your control
-- **Model Agnostic**: Works with any OpenAPI-compatible STT endpoint
-- **Local & Remote**: Support for Ollama, vLLM, OpenAI Whisper API
+- **Open Source**: Run your own STT models locally with vLLM
+- **Cloud Support**: Also works with Groq (free tier) and OpenAI
 - **IDE Native**: Seamless VS Code and Cursor integration
-- **Offline Capable**: Full functionality with local models
+- **Model Agnostic**: Works with any OpenAI-compatible STT endpoint
 - **Accessible**: Built for developers with accessibility needs
 
 ## Tech Stack
@@ -90,56 +89,9 @@ sudo dnf install sox
 
 ## Supported Providers
 
-### 1. Groq (Recommended - Free, Cloud)
+### 1. vLLM (Local, Free, Open Source)
 
-The fastest and easiest way to get started. Free tier available, no local setup needed.
-
-**Setup:**
-1. Get a free API key at [console.groq.com](https://console.groq.com)
-2. Configure Voice2Code:
-
-| Setting | Value |
-|---|---|
-| **Endpoint URL** | `https://api.groq.com/openai/v1/audio/transcriptions` |
-| **Model** | `whisper-large-v3` |
-| **API Key** | Your Groq key (`gsk_...`) |
-
-```json
-{
-  "voice2code.endpoint.url": "https://api.groq.com/openai/v1/audio/transcriptions",
-  "voice2code.endpoint.model": "whisper-large-v3"
-}
-```
-Then set your API key: Cmd+Shift+P → "Voice2Code: Set API Key"
-
----
-
-### 2. OpenAI (Cloud, Paid)
-
-Uses OpenAI's Whisper API directly. Reliable and accurate.
-
-**Setup:**
-1. Get an API key at [platform.openai.com](https://platform.openai.com)
-2. Configure Voice2Code:
-
-| Setting | Value |
-|---|---|
-| **Endpoint URL** | `https://api.openai.com/v1/audio/transcriptions` |
-| **Model** | `whisper-1` |
-| **API Key** | Your OpenAI key (`sk-...`) |
-
-```json
-{
-  "voice2code.endpoint.url": "https://api.openai.com/v1/audio/transcriptions",
-  "voice2code.endpoint.model": "whisper-1"
-}
-```
-
----
-
-### 3. vLLM (Local, Free)
-
-Serve Whisper models locally with vLLM. OpenAI-compatible API, no API key needed.
+Run Whisper models locally on your machine. No API key needed, full privacy.
 
 **Setup:**
 
@@ -170,19 +122,66 @@ Available models: `openai/whisper-small`, `openai/whisper-large-v3`, `openai/whi
 
 ---
 
+### 2. Groq (Cloud, Free Tier)
+
+If you don't want to run models locally, Groq offers a free cloud API with fast response times.
+
+**Setup:**
+1. Get a free API key at [console.groq.com](https://console.groq.com)
+2. Configure Voice2Code:
+
+| Setting | Value |
+|---|---|
+| **Endpoint URL** | `https://api.groq.com/openai/v1/audio/transcriptions` |
+| **Model** | `whisper-large-v3` |
+| **API Key** | Your Groq key (`gsk_...`) |
+
+```json
+{
+  "voice2code.endpoint.url": "https://api.groq.com/openai/v1/audio/transcriptions",
+  "voice2code.endpoint.model": "whisper-large-v3"
+}
+```
+Then set your API key: Cmd+Shift+P → "Voice2Code: Set API Key"
+
+---
+
+### 3. OpenAI (Cloud, Paid)
+
+Uses OpenAI's Whisper API directly. Reliable and accurate.
+
+**Setup:**
+1. Get an API key at [platform.openai.com](https://platform.openai.com)
+2. Configure Voice2Code:
+
+| Setting | Value |
+|---|---|
+| **Endpoint URL** | `https://api.openai.com/v1/audio/transcriptions` |
+| **Model** | `whisper-1` |
+| **API Key** | Your OpenAI key (`sk-...`) |
+
+```json
+{
+  "voice2code.endpoint.url": "https://api.openai.com/v1/audio/transcriptions",
+  "voice2code.endpoint.model": "whisper-1"
+}
+```
+
+---
+
 ### Provider Comparison
 
 | Provider | Local | Free | Speed | Accuracy | Setup |
 |---|---|---|---|---|---|
+| **vLLM** | Yes | Yes | Medium | High | 10 min |
 | **Groq** | No | Yes (free tier) | Very fast | High | 2 min |
 | **OpenAI** | No | No ($0.006/min) | Fast | High | 2 min |
-| **vLLM** | Yes | Yes | Medium | High | 10 min |
 
 ## Usage
 
 ### Quick Start
 
-1. Install Voice2Code from the marketplace or `.vsix`
+1. Install Voice2Code from the `.vsix` (see [Installation](#installation))
 2. Install sox: `brew install sox` (macOS) or `sudo apt-get install sox` (Linux)
 3. Set up a provider (see [Supported Providers](#supported-providers) above)
 4. Set your API key if needed: Cmd+Shift+P → "Voice2Code: Set API Key"
