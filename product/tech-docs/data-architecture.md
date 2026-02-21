@@ -23,6 +23,15 @@ Voice2Code does NOT use:
 
 ## Storage Mechanisms
 
+Voice2Code uses different storage mechanisms depending on the platform:
+
+| Storage Need | VS Code Extension | Desktop App |
+|---|---|---|
+| **Settings** | VS Code Settings API | `electron-store` (JSON) |
+| **Secrets** | VS Code SecretStorage | Electron `safeStorage` |
+| **State** | In-memory | In-memory |
+| **History** | VS Code Memento | `electron-store` |
+
 ### 1. VS Code Settings (Configuration)
 
 **Purpose:** Store user preferences and endpoint configurations
@@ -125,6 +134,43 @@ class ExtensionState {
 - Created on extension activation
 - Destroyed on extension deactivation
 - Never persisted to disk
+
+### 5. Desktop App: electron-store (Configuration)
+
+**Purpose:** Store settings for the Electron desktop app
+
+**Location:** `~/Library/Application Support/voice2code-desktop/config.json`
+
+**What We Store:**
+```json
+{
+  "endpoint": {
+    "url": "http://localhost:8000/v1/audio/transcriptions",
+    "model": "openai/whisper-large-v3",
+    "timeout": 30000
+  },
+  "audio": {
+    "deviceId": "default",
+    "sampleRate": 16000,
+    "format": "mp3"
+  }
+}
+```
+
+**Security:** Plain JSON — DO NOT store secrets here. Use `safeStorage` for API keys.
+
+### 6. Desktop App: safeStorage (Secrets)
+
+**Purpose:** Store encrypted API keys for the Electron desktop app
+
+**What We Store:**
+```typescript
+// Encrypted via macOS Keychain
+const encrypted = safeStorage.encryptString(apiKey);
+store.set('encryptedApiKey', encrypted.toString('base64'));
+```
+
+**Security:** Encrypted at rest via macOS Keychain. Cannot be read without user's login.
 
 ### 4. VS Code Memento (Optional Persistent State)
 
@@ -494,9 +540,9 @@ async function importConfiguration(json: string): Promise<void> {
   "exportDate": "2026-02-11T10:30:00Z",
   "endpoints": [
     {
-      "name": "Local Ollama",
-      "url": "http://localhost:11434/api/transcribe",
-      "model": "whisper-large-v3"
+      "name": "Local vLLM",
+      "url": "http://localhost:8000/v1/audio/transcriptions",
+      "model": "openai/whisper-large-v3"
     }
   ],
   "settings": {
@@ -616,6 +662,6 @@ test('should limit history to max items', async () => {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Data Minimalism is Key

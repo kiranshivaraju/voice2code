@@ -4,7 +4,7 @@ prodkit:
 project:
   name: "Voice2Code"
   type: "node"  # TypeScript-based IDE extension
-  description: "Privacy-focused speech-to-text extension for IDEs with configurable local and remote model support"
+  description: "Open-source speech-to-text for macOS — works system-wide as a menu bar app or as a VS Code/Cursor extension"
 
 github:
   repo: "kiranshivaraju/voice2code"  # format: username/repo-name
@@ -28,7 +28,7 @@ testing:
     - integration
 
 sprints:
-  current: 1
+  current: 3
   naming_pattern: "v{N}"  # v1, v2, v3, etc.
 
 structure:

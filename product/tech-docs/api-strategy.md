@@ -15,10 +15,9 @@ This document defines:
 
 Voice2Code supports any **OpenAPI-compatible** STT endpoint. This includes:
 
-1. **OpenAI Whisper API** (or compatible)
-2. **Ollama API** (local models)
-3. **vLLM OpenAI-compatible server** (local/remote)
-4. **Custom endpoints** following OpenAI conventions
+1. **vLLM** (local, OpenAI-compatible)
+2. **Groq** (cloud, free tier)
+3. **OpenAI Whisper API** (cloud, paid)
 
 ### OpenAI Whisper API Standard
 
@@ -56,33 +55,6 @@ en
 }
 ```
 
-### Ollama API Pattern
-
-**Endpoint Pattern:**
-```
-POST /api/generate
-```
-
-**Request:**
-```http
-POST http://localhost:11434/api/generate
-Content-Type: application/json
-
-{
-  "model": "whisper-large-v3",
-  "prompt": "[base64 audio data]",
-  "stream": false
-}
-```
-
-**Response:**
-```json
-{
-  "response": "The transcribed text content goes here.",
-  "done": true
-}
-```
-
 ### Generic OpenAPI Pattern
 
 Voice2Code will detect and adapt to various response formats:
@@ -92,10 +64,7 @@ Voice2Code will detect and adapt to various response formats:
 // Format 1: OpenAI standard
 { "text": "transcribed text" }
 
-// Format 2: Ollama style
-{ "response": "transcribed text" }
-
-// Format 3: Generic
+// Format 2: Generic
 { "transcription": "transcribed text" }
 
 // Format 4: Nested
@@ -194,52 +163,6 @@ class OpenAIWhisperAdapter implements STTAdapter {
 }
 ```
 
-### Ollama Adapter Implementation
-
-```typescript
-class OllamaAdapter implements STTAdapter {
-  constructor(private endpoint: string) {}
-
-  async transcribe(
-    audio: Buffer,
-    options: TranscriptionOptions
-  ): Promise<TranscriptionResult> {
-    // Ollama expects base64-encoded audio
-    const base64Audio = audio.toString('base64');
-
-    const response = await axios.post(
-      `${this.endpoint}/api/generate`,
-      {
-        model: options.model,
-        prompt: base64Audio,
-        stream: false,
-      },
-      {
-        timeout: 30000,
-      }
-    );
-
-    return {
-      text: response.data.response,
-    };
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      await axios.get(`${this.endpoint}/api/tags`, { timeout: 5000 });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async getAvailableModels(): Promise<string[]> {
-    const response = await axios.get(`${this.endpoint}/api/tags`);
-    return response.data.models.map((m: any) => m.name);
-  }
-}
-```
-
 ### Generic Adapter (Auto-detect)
 
 ```typescript
@@ -257,7 +180,7 @@ class GenericAdapter implements STTAdapter {
     try {
       return await this.transcribeMultipart(audio, options);
     } catch {
-      // Fall back to JSON (Ollama style)
+      // Fall back to JSON
       return await this.transcribeJson(audio, options);
     }
   }
@@ -815,6 +738,6 @@ describe('TranscriptionService Integration', () => {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Flexibility Through Standards

@@ -69,20 +69,28 @@ const response = await axios.post(endpoint, audio, {
 
 ### Credential Storage
 
-#### VS Code SecretStorage API
+#### VS Code SecretStorage API (Extension)
 ```typescript
-// Store credentials securely
 await context.secrets.store('voice2code.apiKey', apiKey);
-
-// Retrieve credentials
 const apiKey = await context.secrets.get('voice2code.apiKey');
-
-// Delete credentials
 await context.secrets.delete('voice2code.apiKey');
 ```
 
-**Security Properties:**
-- Encrypted at rest (OS keychain on macOS, Credential Manager on Windows, libsecret on Linux)
+#### Electron safeStorage API (Desktop App)
+```typescript
+import { safeStorage } from 'electron';
+
+// Encrypt and store
+const encrypted = safeStorage.encryptString(apiKey);
+store.set('encryptedApiKey', encrypted.toString('base64'));
+
+// Retrieve and decrypt
+const encrypted = Buffer.from(store.get('encryptedApiKey'), 'base64');
+const apiKey = safeStorage.decryptString(encrypted);
+```
+
+**Security Properties (both):**
+- Encrypted at rest (macOS Keychain-backed)
 - Not included in Settings Sync
 - Never logged or displayed in UI
 
@@ -402,6 +410,43 @@ logger.debug('Request headers', {
 });
 ```
 
+## Desktop App Security (Electron)
+
+### macOS Permissions
+
+The desktop app requires explicit user consent for:
+
+1. **Microphone Access:** Standard macOS prompt on first use
+2. **Accessibility:** Required for `@nut-tree/nut-js` keyboard simulation (paste into any app)
+   ```typescript
+   // Prompt user to grant Accessibility permission
+   systemPreferences.isTrustedAccessibilityClient(true);
+   ```
+
+### Electron Security Best Practices
+
+- **Context isolation enabled:** `contextIsolation: true` in BrowserWindow
+- **Node integration disabled:** `nodeIntegration: false` in renderer
+- **Preload scripts:** All IPC via `contextBridge.exposeInMainWorld()`
+- **No remote module:** Deprecated and disabled
+- **LSUIElement:** App hidden from Dock (menu bar only)
+
+### Clipboard Security
+
+The paste simulation saves and restores the user's clipboard:
+```typescript
+const previous = clipboard.readText();
+clipboard.writeText(transcribedText);
+await simulatePaste();  // Cmd+V
+setTimeout(() => clipboard.writeText(previous), 500);
+```
+
+### electron-store Security
+
+- Config file stored at `~/Library/Application Support/voice2code-desktop/`
+- Settings are plain JSON — DO NOT store secrets here
+- API keys always go through `safeStorage` encryption
+
 ## Extension Security
 
 ### VS Code Extension Permissions
@@ -615,6 +660,6 @@ test('should clear audio buffer after transcription', async () => {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Security is Everyone's Responsibility

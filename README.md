@@ -36,13 +36,17 @@ Voice2Code enables developers to dictate code and documentation directly into th
 
 ### Prerequisites
 
-- Node.js 20.x or later (**v20.18.1+ required** — v18 incompatible with undici dependency)
+- macOS
+- Node.js 20.x or later (**v20.18.1+ required**)
 - VS Code 1.85.0 or later (or Cursor IDE)
-- An STT model endpoint (local or remote)
+- sox for audio capture: `brew install sox`
 
 ### Installation
 
 ```bash
+# Install sox (required for audio capture)
+brew install sox
+
 # Clone the repository
 git clone https://github.com/kiranshivaraju/voice2code.git
 cd voice2code
@@ -56,12 +60,11 @@ npm run compile
 # Package the extension
 npm run package
 
-# Install the .vsix file in VS Code / Cursor
+# Install the .vsix file
 code --install-extension voice2code-*.vsix
-# Or for Cursor: cursor --install-extension voice2code-*.vsix
 ```
 
-Alternatively, open VS Code/Cursor → Extensions (Cmd+Shift+X) → click `...` → **Install from VSIX...** → select the built `.vsix` file.
+For Cursor, use `cursor --install-extension voice2code-*.vsix`, or open Extensions (Cmd+Shift+X) → click `...` → **Install from VSIX...** → select the `.vsix` file.
 
 ### Configuration
 
@@ -69,21 +72,6 @@ Alternatively, open VS Code/Cursor → Extensions (Cmd+Shift+X) → click `...` 
 2. Set your endpoint URL and model
 3. If using a cloud provider, set your API key: Cmd+Shift+P → "Voice2Code: Set API Key"
 4. Click "Test Connection" to verify
-
-### System Dependency
-
-Voice2Code requires **sox** for audio capture:
-
-```bash
-# macOS
-brew install sox
-
-# Linux (Debian/Ubuntu)
-sudo apt-get install sox
-
-# Linux (Fedora)
-sudo dnf install sox
-```
 
 ---
 

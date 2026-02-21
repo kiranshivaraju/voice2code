@@ -4,36 +4,45 @@ This document provides guidelines and defaults for AI-assisted development using
 
 ## Project Context
 
-**Product:** Voice2Code - Privacy-focused speech-to-text IDE extension
+**Product:** Voice2Code - Open-source speech-to-text for macOS developers
 
-**Vision:** Enable developers to dictate code and documentation directly into their IDE using local or self-hosted STT models, with zero cloud dependencies and full user control.
+**Vision:** System-wide speech-to-text that works everywhere — in IDEs, terminals (Ghostty), browsers, and any app. Available as a VS Code/Cursor extension and a standalone macOS menu bar app.
 
-**Target Users:** Developers with accessibility needs, productivity-focused coders, and privacy-conscious organizations.
+**Target Users:** Developers with accessibility needs, terminal-first developers, productivity-focused coders, and privacy-conscious organizations.
 
 **Core Values:**
+- Open source (run your own STT models locally with vLLM)
+- Works everywhere (not limited to IDEs — system-wide via desktop app)
 - Privacy first (no data leaves user's control)
-- User choice (configure any OpenAPI-compatible STT model)
-- Simplicity (minimal dependencies, lightweight extension)
-- Accessibility (remove barriers for developers with physical limitations)
+- Simplicity (minimal dependencies, shared core)
 
 ## Technical Stack
 
 ### Core Technologies
 - **Language:** TypeScript 5.x (strict mode)
-- **Platform:** VS Code Extension API (Node.js runtime)
+- **Platforms:** VS Code Extension API + Electron (macOS menu bar app)
 - **Build Tool:** Webpack 5.x
 - **Package Manager:** npm
-- **Testing:** Jest + VS Code Extension Test Runner
+- **Testing:** Jest
 
-### Key Dependencies
-- **HTTP Client:** Axios (for STT endpoint communication)
-- **Audio Capture:** Native Node.js audio libraries (e.g., `node-record-lpcm16`)
-- **Audio Encoding:** FFmpeg bindings or similar for MP3 encoding
-- **Linting:** ESLint + Prettier
+### Key Dependencies (Shared)
+- **HTTP Client:** Axios
+- **Audio Capture:** `node-record-lpcm16` (wraps sox)
+- **Audio Encoding:** `lamejs` (MP3)
+- **Form Data:** `form-data` (multipart for OpenAI-compatible APIs)
+
+### Desktop App Dependencies
+- **Framework:** Electron
+- **Config:** `electron-store` (JSON persistence)
+- **Secrets:** Electron `safeStorage` (macOS Keychain)
+- **Keyboard:** `@nut-tree/nut-js` (paste simulation)
+- **Packaging:** `electron-builder`
 
 ### Architecture
-- **Style:** Layered architecture (UI → Core → Infrastructure)
-- **No Database:** Uses VS Code Settings API and Memento for persistence
+- **Style:** Shared core + platform-specific shells
+- **Shared Core:** `src/adapters/`, `src/audio/`, `src/types/`, `src/config/endpoint-validator.ts`
+- **VS Code Shell:** `src/extension.ts`, `src/core/`, `src/ui/`, `src/config/configuration-manager.ts`
+- **Desktop Shell:** `desktop/src/` (config-store, tray, hotkey, paste, desktop-engine)
 - **No Backend:** Client-side only, no servers
 
 ## Coding Standards
@@ -111,10 +120,14 @@ function validateModel(url: string): boolean {
 ## Configuration Defaults
 
 ### Storage Mechanisms
-- **User Settings:** VS Code Settings API (`vscode.workspace.getConfiguration`)
-- **Secrets:** VS Code SecretStorage API (for API keys)
-- **State:** VS Code Memento API (for history, if enabled)
-- **Runtime:** In-memory only (no file system writes)
+- **VS Code Extension:**
+  - Settings: VS Code Settings API (`vscode.workspace.getConfiguration`)
+  - Secrets: VS Code SecretStorage API
+  - State: VS Code Memento API
+- **Desktop App:**
+  - Settings: `electron-store` (JSON file)
+  - Secrets: Electron `safeStorage` (macOS Keychain encryption)
+  - State: In-memory only
 
 ### Default Settings
 ```typescript
@@ -169,8 +182,7 @@ language: {languageCode}
 
 #### Response Parsing Priority
 1. Try `response.data.text` (OpenAI standard)
-2. Try `response.data.response` (Ollama style)
-3. Try `response.data.transcription` (Generic)
+2. Try `response.data.transcription` (Generic)
 4. Throw error if none found
 
 #### Error Handling
@@ -413,12 +425,14 @@ interface IAudioEncoder {
 **Pattern:** Adapter pattern (see `api-strategy.md`)
 
 ### Scenario: Need to store user preference
-**Decision:** Use VS Code Settings API (`getConfiguration`)
+**Decision (Extension):** Use VS Code Settings API (`getConfiguration`)
+**Decision (Desktop):** Use `electron-store`
 **Never:** Write to file system directly
 
 ### Scenario: Need to store API key
-**Decision:** Use VS Code SecretStorage API
-**Never:** Store in settings.json or code
+**Decision (Extension):** Use VS Code SecretStorage API
+**Decision (Desktop):** Use Electron `safeStorage`
+**Never:** Store in settings.json, electron-store, or code
 
 ### Scenario: Need temporary data during session
 **Decision:** In-memory class property
@@ -507,6 +521,6 @@ export class TranscriptionService implements ITranscriptionService {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Living Document (Update as Project Evolves)

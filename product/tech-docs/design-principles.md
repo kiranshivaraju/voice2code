@@ -31,42 +31,43 @@
 ### 5. Security by Default
 - Validate all inputs
 - Use HTTPS for remote endpoints (warn on HTTP)
-- Store credentials securely (VS Code SecretStorage)
+- Store credentials securely (VS Code SecretStorage / Electron safeStorage)
 - Fail safely - don't expose sensitive data in errors
+
+### 6. Shared Core, Platform Shells
+- Audio capture, encoding, and STT adapters are platform-independent
+- VS Code extension and desktop app are thin shells over the shared core
+- Never duplicate shared logic in platform-specific code
 
 ## Code Organization
 
 ### Project Structure
 ```
 voice2code/
-├── src/
-│   ├── extension.ts              # Extension entry point
-│   ├── core/
-│   │   ├── engine.ts              # Main orchestration
-│   │   ├── transcription-service.ts
-│   │   └── editor-service.ts
-│   ├── audio/
-│   │   ├── audio-manager.ts
-│   │   ├── audio-encoder.ts
-│   │   └── device-manager.ts
-│   ├── config/
-│   │   ├── configuration-manager.ts
-│   │   ├── endpoint-validator.ts
-│   │   └── settings-schema.ts
-│   ├── ui/
-│   │   ├── extension-ui.ts
-│   │   ├── status-bar-controller.ts
-│   │   └── preview-panel.ts
-│   ├── utils/
-│   │   ├── logger.ts
-│   │   ├── error-handler.ts
-│   │   └── validation.ts
-│   └── types/
-│       └── index.ts               # Shared TypeScript types
+├── src/                          # Shared core + VS Code extension
+│   ├── extension.ts              # VS Code entry point
+│   ├── adapters/                 # STT provider adapters (shared)
+│   ├── audio/                    # Audio capture + encoding (shared)
+│   ├── config/                   # Configuration + validation
+│   ├── core/                     # Engine, transcription, editor service
+│   ├── ui/                       # VS Code-specific UI
+│   ├── network/                  # Network monitoring
+│   └── types/                    # Shared TypeScript types
+├── desktop/                      # Electron menu bar app
+│   ├── src/
+│   │   ├── main.ts               # Electron entry point
+│   │   ├── config-store.ts       # electron-store config
+│   │   ├── secret-store.ts       # safeStorage encryption
+│   │   ├── tray.ts               # Tray icon + menu
+│   │   ├── hotkey.ts             # Global shortcut
+│   │   ├── paste.ts              # Clipboard + Cmd+V
+│   │   ├── desktop-engine.ts     # Desktop recording orchestrator
+│   │   ├── preload.ts            # IPC bridge
+│   │   ├── settings-window.ts    # Settings BrowserWindow
+│   │   └── settings/             # Settings UI (HTML/CSS/JS)
+│   ├── package.json
+│   └── webpack.config.js
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
 ├── package.json
 ├── tsconfig.json
 ├── webpack.config.js
@@ -479,6 +480,6 @@ logger.debug('Audio data', { audioBuffer: buffer.toString('base64') });
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Applies to All Sprints
