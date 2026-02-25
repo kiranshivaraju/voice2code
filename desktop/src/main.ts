@@ -3,7 +3,7 @@
  * Hides dock icon, wires all components, and manages app lifecycle.
  */
 
-import { app, systemPreferences, Notification } from 'electron';
+import { app } from 'electron';
 import path from 'path';
 
 import { DeviceManager } from '@core/audio/device-manager';
@@ -17,16 +17,13 @@ import { SecretStore } from './secret-store';
 import { TrayManager, TrayIconPaths } from './tray';
 import { HotkeyManager } from './hotkey';
 import { DesktopEngine } from './desktop-engine';
+import { createNotifier } from './notification';
+import { checkAccessibility } from './accessibility';
 
 let trayManager: TrayManager;
 let hotkeyManager: HotkeyManager;
 let configStore: ConfigStore;
-
-function showNotification(title: string, body: string): void {
-  if (!configStore.getUIConfig().showNotifications) return;
-  const notification = new Notification({ title, body });
-  notification.show();
-}
+let showNotification: (title: string, body: string) => void;
 
 async function testAndNotify(): Promise<void> {
   const config = configStore.getEndpointConfig();
@@ -45,17 +42,14 @@ async function testAndNotify(): Promise<void> {
 app.on('ready', () => {
   app.dock?.hide();
 
-  // Check Accessibility permissions
-  const trusted = systemPreferences.isTrustedAccessibilityClient(true);
-  if (!trusted) {
-    showNotification(
-      'Accessibility Required',
-      'Voice2Code needs Accessibility access for paste simulation. Please grant access in System Settings.'
-    );
-  }
-
   // Create stores
   configStore = new ConfigStore();
+
+  // Create notifier (respects showNotifications config)
+  showNotification = createNotifier(() => configStore.getUIConfig());
+
+  // Check Accessibility permissions
+  checkAccessibility(showNotification);
   const secretStore = new SecretStore(configStore['store']);
 
   // Create audio pipeline
