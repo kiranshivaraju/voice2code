@@ -13,7 +13,10 @@ Voice2Code enables developers to dictate code and documentation directly into th
 
 - **Open Source**: Run your own STT models locally with vLLM
 - **Cloud Support**: Also works with Groq (free tier) and OpenAI
-- **IDE Native**: Seamless VS Code and Cursor integration
+- **Desktop App**: System-wide macOS menu bar app (Electron)
+- **IDE Extension**: Seamless VS Code and Cursor integration
+- **Voice Commands**: Built-in commands like "new line", "undo", "select all"
+- **Transcription History**: Searchable history with copy support
 - **Model Agnostic**: Works with any OpenAI-compatible STT endpoint
 - **Accessible**: Built for developers with accessibility needs
 
@@ -32,7 +35,58 @@ Voice2Code enables developers to dictate code and documentation directly into th
 - **Linting:** ESLint + Prettier
 - **Type Checking:** TypeScript strict mode
 
-## Getting Started
+## Desktop App (macOS Menu Bar)
+
+Voice2Code also runs as a standalone macOS menu bar app, working system-wide across any application.
+
+### Desktop Installation
+
+```bash
+git clone https://github.com/kiranshivaraju/voice2code.git
+cd voice2code/desktop
+npm install
+npm run build
+npm start
+```
+
+### Desktop Usage
+
+- **Global Hotkey**: `Cmd+Shift+V` to start/stop recording (works in any app)
+- **Tray Menu**: Click the menu bar icon for recording controls, history, and settings
+- **Settings**: Configure endpoint, model, audio device, and voice commands
+- **History**: View, search, and copy past transcriptions
+
+### Voice Commands
+
+When voice commands are enabled (default), these phrases are recognized:
+
+| Voice Phrase | Action |
+|---|---|
+| "new line" | Insert line break |
+| "tab" | Insert tab |
+| "enter" | Press Enter |
+| "backspace" / "delete" | Delete character |
+| "select all" | Select all text |
+| "undo" / "redo" | Undo/redo |
+| "copy that" / "paste that" / "cut that" | Clipboard operations |
+| "escape" | Press Escape |
+
+Custom commands can be added in Settings.
+
+### Packaging for Distribution
+
+```bash
+cd desktop
+npm run dist    # Creates .dmg for macOS
+```
+
+The app hides from the Dock (LSUIElement) and runs purely from the menu bar.
+
+---
+
+## VS Code Extension
+
+### Getting Started
 
 ### Prerequisites
 
@@ -227,24 +281,27 @@ This project uses **ProdKit** for development workflow and **Speckit** for TDD.
 
 ```
 .
-├── src/                      # Source code
-│   ├── core/                 # Core engine and services
-│   ├── audio/                # Audio capture and encoding
-│   ├── config/               # Configuration management
-│   ├── ui/                   # UI components
-│   ├── adapters/             # STT provider adapters
-│   ├── utils/                # Utility functions
+├── src/                      # Shared core (used by both extension and desktop)
+│   ├── audio/                # Audio capture, encoding, device management
+│   ├── config/               # Configuration and endpoint validation
+│   ├── adapters/             # STT provider adapters (Ollama, OpenAI)
 │   └── types/                # TypeScript type definitions
-├── tests/
-│   ├── unit/                 # Unit tests
-│   ├── contract/             # Contract tests
-│   ├── integration/          # Integration tests
-│   ├── e2e/                  # End-to-end tests
-│   ├── fixtures/             # Test fixtures
-│   └── helpers/              # Test helpers
+├── desktop/                  # Electron desktop app
+│   ├── src/                  # Desktop source code
+│   │   ├── main.ts           # Electron entry point
+│   │   ├── desktop-engine.ts # Recording state machine
+│   │   ├── tray.ts           # Menu bar tray manager
+│   │   ├── config-store.ts   # Persistent configuration
+│   │   ├── command-parser.ts # Voice command detection
+│   │   ├── command-executor.ts # Command execution via osascript
+│   │   ├── history-store.ts  # Transcription history
+│   │   ├── history-window.ts # History BrowserWindow
+│   │   ├── settings-window.ts # Settings BrowserWindow
+│   │   ├── settings/         # Settings UI (HTML/CSS/renderer)
+│   │   └── history/          # History UI (HTML/CSS/renderer)
+│   └── tests/                # Desktop tests
+├── tests/                    # VS Code extension tests
 ├── product/                  # Product-level documentation
-│   ├── prd.md                # Product Requirements Document
-│   └── tech-docs/            # Technical architecture docs
 ├── sprints/                  # Sprint-level documentation
 └── .prodkit/                 # ProdKit framework
 ```
