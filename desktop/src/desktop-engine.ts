@@ -8,6 +8,8 @@ import { ConfigStore } from './config-store';
 import { SecretStore } from './secret-store';
 import { TrayManager } from './tray';
 import { pasteText } from './paste';
+import { CommandParser } from './command-parser';
+import { CommandExecutor } from './command-executor';
 
 type NotifyFn = (title: string, body: string) => void;
 
@@ -29,6 +31,8 @@ interface AdapterFactoryLike {
 export class DesktopEngine {
   private state: RecordingState = 'idle';
 
+  private commandExecutor: CommandExecutor;
+
   constructor(
     private configStore: ConfigStore,
     private secretStore: SecretStore,
@@ -36,8 +40,11 @@ export class DesktopEngine {
     private audioEncoder: AudioEncoderLike,
     private trayManager: TrayManager,
     private notify: NotifyFn,
-    private adapterFactory: AdapterFactoryLike
-  ) {}
+    private adapterFactory: AdapterFactoryLike,
+    commandExecutor?: CommandExecutor
+  ) {
+    this.commandExecutor = commandExecutor ?? new CommandExecutor();
+  }
 
   async toggleRecording(): Promise<void> {
     switch (this.state) {
@@ -87,7 +94,14 @@ export class DesktopEngine {
         language: endpointConfig.language,
       });
 
-      await pasteText(result.text);
+      const uiConfig = this.configStore.getUIConfig();
+      if (uiConfig.voiceCommandsEnabled) {
+        const parser = new CommandParser(uiConfig.customCommands);
+        const segments = parser.parse(result.text);
+        this.commandExecutor.execute(segments);
+      } else {
+        await pasteText(result.text);
+      }
     } catch (error) {
       this.notifyError(error);
     } finally {
