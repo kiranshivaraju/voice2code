@@ -7,6 +7,12 @@ jest.mock('../../src/paste', () => ({
   pasteText: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../src/command-executor', () => ({
+  CommandExecutor: jest.fn().mockImplementation(() => ({
+    execute: jest.fn(),
+  })),
+}));
+
 import { DesktopEngine } from '../../src/desktop-engine';
 import { pasteText } from '../../src/paste';
 import { NetworkError, AudioError, STTError, ConfigurationError } from '@core/types';
@@ -25,6 +31,11 @@ function createMocks() {
       deviceId: 'default',
       sampleRate: 16000,
       format: 'mp3',
+    }),
+    getUIConfig: jest.fn().mockReturnValue({
+      showNotifications: true,
+      voiceCommandsEnabled: false,
+      customCommands: {},
     }),
   };
 
@@ -325,6 +336,65 @@ describe('DesktopEngine', () => {
       );
       await engine.toggleRecording();
       expect(mocks.notify).toHaveBeenCalledWith('Transcription Error', 'Internal server error');
+    });
+  });
+
+  describe('voice commands integration', () => {
+    it('should use pasteText when voice commands disabled', async () => {
+      mocks.configStore.getUIConfig.mockReturnValue({
+        showNotifications: true,
+        voiceCommandsEnabled: false,
+        customCommands: {},
+      });
+      await engine.startRecording();
+      await engine.stopRecording();
+      expect(mockPasteText).toHaveBeenCalledWith('hello world');
+    });
+
+    it('should use CommandParser+Executor when voice commands enabled', async () => {
+      mocks.configStore.getUIConfig.mockReturnValue({
+        showNotifications: true,
+        voiceCommandsEnabled: true,
+        customCommands: {},
+      });
+      const mockExecutor = { execute: jest.fn() };
+      const engineWithCommands = new DesktopEngine(
+        mocks.configStore as any,
+        mocks.secretStore as any,
+        mocks.audioManager as any,
+        mocks.audioEncoder as any,
+        mocks.trayManager as any,
+        mocks.notify,
+        mocks.adapterFactory as any,
+        mockExecutor as any
+      );
+      await engineWithCommands.startRecording();
+      await engineWithCommands.stopRecording();
+      expect(mockExecutor.execute).toHaveBeenCalled();
+      expect(mockPasteText).not.toHaveBeenCalled();
+    });
+
+    it('should pass custom commands to CommandParser when enabled', async () => {
+      const customCommands = { 'fix this': 'fix' };
+      mocks.configStore.getUIConfig.mockReturnValue({
+        showNotifications: true,
+        voiceCommandsEnabled: true,
+        customCommands,
+      });
+      const mockExecutor = { execute: jest.fn() };
+      const engineWithCommands = new DesktopEngine(
+        mocks.configStore as any,
+        mocks.secretStore as any,
+        mocks.audioManager as any,
+        mocks.audioEncoder as any,
+        mocks.trayManager as any,
+        mocks.notify,
+        mocks.adapterFactory as any,
+        mockExecutor as any
+      );
+      await engineWithCommands.startRecording();
+      await engineWithCommands.stopRecording();
+      expect(mockExecutor.execute).toHaveBeenCalled();
     });
   });
 });
