@@ -15,6 +15,7 @@ export interface TrayIconPaths {
 interface TrayCallbacks {
   onStartRecording?: () => void;
   onStopRecording?: () => void;
+  onOpenHistory?: () => void;
   onOpenSettings?: () => void;
   onTestConnection?: () => void;
   onQuit?: () => void;
@@ -51,6 +52,11 @@ export class TrayManager {
 
   setOnStopRecording(callback: () => void): void {
     this.callbacks.onStopRecording = callback;
+    this.buildMenu();
+  }
+
+  setOnOpenHistory(callback: () => void): void {
+    this.callbacks.onOpenHistory = callback;
     this.buildMenu();
   }
 
@@ -101,6 +107,10 @@ export class TrayManager {
         click: () => this.callbacks.onStopRecording?.(),
       },
       { type: 'separator' },
+      {
+        label: 'History',
+        click: () => this.callbacks.onOpenHistory?.(),
+      },
       {
         label: 'Settings...',
         click: () => this.callbacks.onOpenSettings?.(),

@@ -18,6 +18,8 @@ import { TrayManager, TrayIconPaths } from './tray';
 import { HotkeyManager } from './hotkey';
 import { DesktopEngine } from './desktop-engine';
 import { SettingsWindow } from './settings-window';
+import { HistoryStore } from './history-store';
+import { HistoryWindow } from './history-window';
 import { createNotifier } from './notification';
 import { checkAccessibility } from './accessibility';
 
@@ -70,7 +72,11 @@ app.on('ready', () => {
   trayManager.create();
 
   // Create settings window (IPC handlers registered in constructor)
-  const settingsWindow = new SettingsWindow(configStore, secretStore);
+  const settingsWindow = new SettingsWindow(configStore, secretStore, deviceManager);
+
+  // Create history
+  const historyStore = new HistoryStore();
+  const historyWindow = new HistoryWindow(historyStore);
 
   // Create engine
   const engine = new DesktopEngine(
@@ -80,7 +86,9 @@ app.on('ready', () => {
     audioEncoder,
     trayManager,
     showNotification,
-    adapterFactory
+    adapterFactory,
+    undefined,
+    historyStore
   );
 
   // Register hotkey
@@ -96,6 +104,7 @@ app.on('ready', () => {
   // Wire tray callbacks
   trayManager.setOnStartRecording(() => engine.toggleRecording());
   trayManager.setOnStopRecording(() => engine.toggleRecording());
+  trayManager.setOnOpenHistory(() => historyWindow.show());
   trayManager.setOnOpenSettings(() => settingsWindow.show());
   trayManager.setOnTestConnection(() => testAndNotify());
   trayManager.setOnQuit(() => app.quit());

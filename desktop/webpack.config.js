@@ -45,9 +45,22 @@ module.exports = [
           { from: 'assets', to: 'assets' },
           { from: 'src/settings/settings.html', to: 'settings/settings.html' },
           { from: 'src/settings/settings.css', to: 'settings/settings.css' },
+          { from: 'src/history/history.html', to: 'history/history.html' },
+          { from: 'src/history/history.css', to: 'history/history.css' },
         ],
       }),
     ],
+  },
+  // History renderer
+  {
+    ...commonConfig,
+    target: 'web',
+    entry: './src/history/history-renderer.ts',
+    output: {
+      filename: 'history/history-renderer.js',
+      path: path.resolve(__dirname, 'dist'),
+    },
+    externals: {},
   },
   // Preload script
   {
