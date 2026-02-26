@@ -10,6 +10,7 @@ import { TrayManager } from './tray';
 import { pasteText } from './paste';
 import { CommandParser } from './command-parser';
 import { CommandExecutor } from './command-executor';
+import { HistoryStore } from './history-store';
 
 type NotifyFn = (title: string, body: string) => void;
 
@@ -41,7 +42,8 @@ export class DesktopEngine {
     private trayManager: TrayManager,
     private notify: NotifyFn,
     private adapterFactory: AdapterFactoryLike,
-    commandExecutor?: CommandExecutor
+    commandExecutor?: CommandExecutor,
+    private historyStore?: HistoryStore
   ) {
     this.commandExecutor = commandExecutor ?? new CommandExecutor();
   }
@@ -102,6 +104,8 @@ export class DesktopEngine {
       } else {
         await pasteText(result.text);
       }
+
+      this.historyStore?.add(result.text, endpointConfig.language);
     } catch (error) {
       this.notifyError(error);
     } finally {

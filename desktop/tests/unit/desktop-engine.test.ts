@@ -397,4 +397,50 @@ describe('DesktopEngine', () => {
       expect(mockExecutor.execute).toHaveBeenCalled();
     });
   });
+
+  describe('history integration', () => {
+    it('should add to history after successful transcription', async () => {
+      const mockHistoryStore = { add: jest.fn() };
+      const engineWithHistory = new DesktopEngine(
+        mocks.configStore as any,
+        mocks.secretStore as any,
+        mocks.audioManager as any,
+        mocks.audioEncoder as any,
+        mocks.trayManager as any,
+        mocks.notify,
+        mocks.adapterFactory as any,
+        undefined,
+        mockHistoryStore as any
+      );
+      await engineWithHistory.startRecording();
+      await engineWithHistory.stopRecording();
+      expect(mockHistoryStore.add).toHaveBeenCalledWith('hello world', 'en');
+    });
+
+    it('should NOT add to history on transcription failure', async () => {
+      const mockHistoryStore = { add: jest.fn() };
+      mocks.mockAdapter.transcribe.mockRejectedValue(new Error('fail'));
+      const engineWithHistory = new DesktopEngine(
+        mocks.configStore as any,
+        mocks.secretStore as any,
+        mocks.audioManager as any,
+        mocks.audioEncoder as any,
+        mocks.trayManager as any,
+        mocks.notify,
+        mocks.adapterFactory as any,
+        undefined,
+        mockHistoryStore as any
+      );
+      await engineWithHistory.startRecording();
+      await engineWithHistory.stopRecording();
+      expect(mockHistoryStore.add).not.toHaveBeenCalled();
+    });
+
+    it('should work without historyStore (backward compatible)', async () => {
+      await engine.startRecording();
+      await engine.stopRecording();
+      // Should not throw - historyStore is undefined
+      expect(engine.getState()).toBe('idle');
+    });
+  });
 });
