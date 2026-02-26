@@ -12,7 +12,8 @@
     "start": "npm run build && electron dist/main.js",
     "test": "jest --config jest.config.js",
     "test:watch": "jest --config jest.config.js --watch",
-    "lint": "eslint src/ --ext .ts"
+    "lint": "eslint src/ --ext .ts",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "axios": "^1.6.5",
@@ -31,6 +32,36 @@
     "typescript": "^5.3.3",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",
-    "copy-webpack-plugin": "^12.0.0"
+    "copy-webpack-plugin": "^12.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.voice2code.desktop",
+    "productName": "Voice2Code",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"],
+      "entitlements": "entitlements.plist",
+      "entitlementsInherit": "entitlements.plist",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "dmg": {
+      "title": "Voice2Code",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/test/**",
+      "!node_modules/**/*.map"
+    ],
+    "extraResources": [
+      { "from": "assets", "to": "assets" }
+    ]
   }
 }

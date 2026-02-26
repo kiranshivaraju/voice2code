@@ -30,6 +30,11 @@ function createIntegrationMocks() {
       sampleRate: 16000,
       format: 'mp3',
     }),
+    getUIConfig: jest.fn().mockReturnValue({
+      showNotifications: true,
+      voiceCommandsEnabled: false,
+      customCommands: {},
+    }),
   };
 
   const secretStore = {

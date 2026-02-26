@@ -21,9 +21,12 @@ export interface DesktopConfig {
   audio: {
     sampleRate: number;
     format: 'mp3' | 'wav';
+    deviceId: string;
   };
   ui: {
     showNotifications: boolean;
+    voiceCommandsEnabled: boolean;
+    customCommands: Record<string, string>;
   };
 }
 
@@ -39,9 +42,12 @@ export const DEFAULT_CONFIG: DesktopConfig = {
   audio: {
     sampleRate: 16000,
     format: 'mp3',
+    deviceId: 'default',
   },
   ui: {
     showNotifications: true,
+    voiceCommandsEnabled: true,
+    customCommands: {},
   },
 };
 
@@ -69,15 +75,17 @@ export class ConfigStore {
 
   getAudioConfig(): AudioConfiguration {
     return {
-      deviceId: 'default',
+      deviceId: this.store.get('audio.deviceId') ?? DEFAULT_CONFIG.audio.deviceId,
       sampleRate: this.store.get('audio.sampleRate') ?? DEFAULT_CONFIG.audio.sampleRate,
       format: (this.store.get('audio.format') ?? DEFAULT_CONFIG.audio.format) as 'mp3' | 'wav',
     };
   }
 
-  getUIConfig(): { showNotifications: boolean } {
+  getUIConfig(): DesktopConfig['ui'] {
     return {
       showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
+      voiceCommandsEnabled: this.store.get('ui.voiceCommandsEnabled') ?? DEFAULT_CONFIG.ui.voiceCommandsEnabled,
+      customCommands: this.store.get('ui.customCommands') ?? DEFAULT_CONFIG.ui.customCommands,
     };
   }
 
@@ -92,9 +100,12 @@ export class ConfigStore {
       audio: {
         sampleRate: this.store.get('audio.sampleRate') ?? DEFAULT_CONFIG.audio.sampleRate,
         format: (this.store.get('audio.format') ?? DEFAULT_CONFIG.audio.format) as 'mp3' | 'wav',
+        deviceId: this.store.get('audio.deviceId') ?? DEFAULT_CONFIG.audio.deviceId,
       },
       ui: {
         showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
+        voiceCommandsEnabled: this.store.get('ui.voiceCommandsEnabled') ?? DEFAULT_CONFIG.ui.voiceCommandsEnabled,
+        customCommands: this.store.get('ui.customCommands') ?? DEFAULT_CONFIG.ui.customCommands,
       },
     };
   }
@@ -107,7 +118,7 @@ export class ConfigStore {
       this.saveAudio(partial.audio);
     }
     if (partial.ui) {
-      this.saveUI(partial.ui);
+      this.saveUI(partial.ui as Partial<DesktopConfig['ui']>);
     }
   }
 
@@ -152,11 +163,24 @@ export class ConfigStore {
       const fmt = VALID_FORMATS.includes(audio.format) ? audio.format : 'mp3';
       this.store.set('audio.format', fmt);
     }
+
+    if (audio.deviceId !== undefined) {
+      if (!audio.deviceId.trim()) {
+        throw new ConfigurationError('Device ID cannot be empty');
+      }
+      this.store.set('audio.deviceId', audio.deviceId);
+    }
   }
 
   private saveUI(ui: Partial<DesktopConfig['ui']>): void {
     if (ui.showNotifications !== undefined) {
       this.store.set('ui.showNotifications', ui.showNotifications);
+    }
+    if (ui.voiceCommandsEnabled !== undefined) {
+      this.store.set('ui.voiceCommandsEnabled', ui.voiceCommandsEnabled);
+    }
+    if (ui.customCommands !== undefined) {
+      this.store.set('ui.customCommands', ui.customCommands);
     }
   }
 }
