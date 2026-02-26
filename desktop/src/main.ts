@@ -17,6 +17,7 @@ import { SecretStore } from './secret-store';
 import { TrayManager, TrayIconPaths } from './tray';
 import { HotkeyManager } from './hotkey';
 import { DesktopEngine } from './desktop-engine';
+import { SettingsWindow } from './settings-window';
 import { createNotifier } from './notification';
 import { checkAccessibility } from './accessibility';
 
@@ -68,6 +69,9 @@ app.on('ready', () => {
   trayManager = new TrayManager(iconPaths);
   trayManager.create();
 
+  // Create settings window (IPC handlers registered in constructor)
+  const settingsWindow = new SettingsWindow(configStore, secretStore);
+
   // Create engine
   const engine = new DesktopEngine(
     configStore,
@@ -92,9 +96,7 @@ app.on('ready', () => {
   // Wire tray callbacks
   trayManager.setOnStartRecording(() => engine.toggleRecording());
   trayManager.setOnStopRecording(() => engine.toggleRecording());
-  trayManager.setOnOpenSettings(() => {
-    // Settings window will be implemented in a separate issue
-  });
+  trayManager.setOnOpenSettings(() => settingsWindow.show());
   trayManager.setOnTestConnection(() => testAndNotify());
   trayManager.setOnQuit(() => app.quit());
 });
