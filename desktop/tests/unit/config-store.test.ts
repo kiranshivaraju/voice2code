@@ -193,6 +193,64 @@ describe('ConfigStore', () => {
     });
   });
 
+  describe('audio.deviceId', () => {
+    it('should default deviceId to "default"', () => {
+      const config = configStore.getAudioConfig();
+      expect(config.deviceId).toBe('default');
+    });
+
+    it('should return saved deviceId', () => {
+      configStore.save({ audio: { deviceId: 'usb-mic-1' } });
+      expect(configStore.getAudioConfig().deviceId).toBe('usb-mic-1');
+    });
+
+    it('should reject empty deviceId', () => {
+      expect(() => {
+        configStore.save({ audio: { deviceId: '' } });
+      }).toThrow(ConfigurationError);
+    });
+
+    it('should reject whitespace-only deviceId', () => {
+      expect(() => {
+        configStore.save({ audio: { deviceId: '   ' } });
+      }).toThrow(ConfigurationError);
+    });
+  });
+
+  describe('ui.voiceCommandsEnabled', () => {
+    it('should default voiceCommandsEnabled to true', () => {
+      const config = configStore.getUIConfig();
+      expect(config.voiceCommandsEnabled).toBe(true);
+    });
+
+    it('should save voiceCommandsEnabled false', () => {
+      configStore.save({ ui: { voiceCommandsEnabled: false } });
+      expect(configStore.getUIConfig().voiceCommandsEnabled).toBe(false);
+    });
+  });
+
+  describe('ui.customCommands', () => {
+    it('should default customCommands to empty object', () => {
+      const config = configStore.getUIConfig();
+      expect(config.customCommands).toEqual({});
+    });
+
+    it('should save custom commands', () => {
+      const commands = { 'fix this': 'fixCommand', 'run tests': 'testCommand' };
+      configStore.save({ ui: { customCommands: commands } });
+      expect(configStore.getUIConfig().customCommands).toEqual(commands);
+    });
+  });
+
+  describe('getAll with new fields', () => {
+    it('should include all new fields in getAll', () => {
+      const config = configStore.getAll();
+      expect(config.audio.deviceId).toBe('default');
+      expect(config.ui.voiceCommandsEnabled).toBe(true);
+      expect(config.ui.customCommands).toEqual({});
+    });
+  });
+
   describe('reset', () => {
     it('should restore all defaults', () => {
       configStore.save({
