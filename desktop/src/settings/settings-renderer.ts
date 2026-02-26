@@ -15,6 +15,7 @@ declare global {
       setApiKey(apiKey: string): Promise<{ success: boolean; error?: string }>;
       deleteApiKey(): Promise<{ success: boolean }>;
       testConnection(): Promise<{ success: boolean; latencyMs?: number; error?: string }>;
+      getDevices(): Promise<Array<{ id: string; name: string; isDefault: boolean }>>;
     };
   }
 }
@@ -43,6 +44,21 @@ async function loadConfig() {
 
   ($('audio-format') as HTMLSelectElement).value = config.audio.format;
   ($('audio-sample-rate') as HTMLSelectElement).value = String(config.audio.sampleRate);
+
+  await loadDevices((config.audio as any).deviceId || 'default');
+}
+
+async function loadDevices(selectedId: string = 'default') {
+  const select = $('audio-device') as HTMLSelectElement;
+  const devices = await window.settingsAPI.getDevices();
+  select.innerHTML = '';
+  for (const device of devices) {
+    const option = document.createElement('option');
+    option.value = device.id;
+    option.textContent = device.name + (device.isDefault ? ' (Default)' : '');
+    if (device.id === selectedId) option.selected = true;
+    select.appendChild(option);
+  }
 }
 
 async function loadApiKeyStatus() {
@@ -77,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       audio: {
         format: ($('audio-format') as HTMLSelectElement).value,
         sampleRate: parseInt(($('audio-sample-rate') as HTMLSelectElement).value, 10),
+        deviceId: ($('audio-device') as HTMLSelectElement).value,
       },
     };
 
@@ -123,6 +140,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       showStatus(statusEl, result.error || 'Failed to save key', 'error');
     }
     setButtonsDisabled(false, btnSaveKey, btnDeleteKey);
+  });
+
+  // Refresh Devices
+  $('btn-refresh-devices').addEventListener('click', async () => {
+    const currentDevice = ($('audio-device') as HTMLSelectElement).value;
+    await loadDevices(currentDevice);
   });
 
   // Delete API Key

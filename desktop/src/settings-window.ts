@@ -8,13 +8,15 @@ import path from 'path';
 import { ConfigStore } from './config-store';
 import { SecretStore } from './secret-store';
 import { testEndpointConnectivity } from '@core/config/endpoint-validator';
+import type { DeviceManager } from '@core/audio/device-manager';
 
 export class SettingsWindow {
   private window: BrowserWindow | null = null;
 
   constructor(
     private configStore: ConfigStore,
-    private secretStore: SecretStore
+    private secretStore: SecretStore,
+    private deviceManager?: DeviceManager
   ) {
     this.registerIPCHandlers();
   }
@@ -101,6 +103,18 @@ export class SettingsWindow {
     ipcMain.handle('settings:delete-api-key', async () => {
       this.secretStore.deleteApiKey();
       return { success: true };
+    });
+
+    ipcMain.handle('settings:get-devices', async () => {
+      try {
+        if (!this.deviceManager) {
+          return [{ id: 'default', name: 'System Default', isDefault: true }];
+        }
+        const devices = await this.deviceManager.getDevices();
+        return devices;
+      } catch {
+        return [{ id: 'default', name: 'System Default', isDefault: true }];
+      }
     });
 
     ipcMain.handle('settings:test-connection', async () => {

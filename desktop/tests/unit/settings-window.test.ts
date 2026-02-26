@@ -7,6 +7,8 @@ jest.mock('@core/config/endpoint-validator', () => ({
   testEndpointConnectivity: jest.fn(),
 }));
 
+const mockGetDevices = jest.fn();
+
 import { BrowserWindow, ipcMain } from 'electron';
 import { SettingsWindow } from '../../src/settings-window';
 import { testEndpointConnectivity } from '@core/config/endpoint-validator';
@@ -55,7 +57,8 @@ describe('SettingsWindow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mocks = createMockStores();
-    settingsWindow = new SettingsWindow(mocks.configStore as any, mocks.secretStore as any);
+    const mockDeviceManager = { getDevices: mockGetDevices };
+    settingsWindow = new SettingsWindow(mocks.configStore as any, mocks.secretStore as any, mockDeviceManager as any);
   });
 
   describe('constructor', () => {
@@ -254,6 +257,30 @@ describe('SettingsWindow', () => {
       const result = await handler({});
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe('settings:get-devices', () => {
+    it('should return devices from DeviceManager', async () => {
+      const devices = [
+        { id: 'default', name: 'System Default', isDefault: true },
+        { id: 'usb-1', name: 'USB Mic', isDefault: false },
+      ];
+      mockGetDevices.mockResolvedValue(devices);
+      const handler = getIPCHandler('settings:get-devices')!;
+      const result = await handler({});
+      expect(result).toEqual(devices);
+    });
+
+    it('should return fallback on DeviceManager error', async () => {
+      mockGetDevices.mockRejectedValue(new Error('No devices'));
+      const handler = getIPCHandler('settings:get-devices')!;
+      const result = await handler({});
+      expect(result).toEqual([{ id: 'default', name: 'System Default', isDefault: true }]);
+    });
+
+    it('should register settings:get-devices handler', () => {
+      expect(getIPCHandler('settings:get-devices')).toBeDefined();
     });
   });
 });
