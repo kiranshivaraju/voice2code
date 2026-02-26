@@ -348,49 +348,38 @@ suite('Basic Recording Workflow', () => {
 ### Directory Structure
 
 ```
-tests/
+tests/                            # VS Code extension tests
 ├── unit/
-│   ├── core/
-│   │   ├── engine.test.ts
-│   │   ├── transcription-service.test.ts
-│   │   └── editor-service.test.ts
-│   ├── audio/
-│   │   ├── audio-manager.test.ts
-│   │   ├── audio-encoder.test.ts
-│   │   └── device-manager.test.ts
+│   ├── adapters/                 # Shared adapter tests
+│   ├── audio/                    # Shared audio tests
 │   ├── config/
-│   │   ├── configuration-manager.test.ts
-│   │   ├── endpoint-validator.test.ts
-│   │   └── settings-schema.test.ts
-│   └── utils/
-│       ├── logger.test.ts
-│       ├── error-handler.test.ts
-│       └── validation.test.ts
-├── contract/
-│   ├── openai-whisper-adapter.test.ts
-│   ├── ollama-adapter.test.ts
-│   └── generic-adapter.test.ts
-├── integration/
-│   ├── recording-workflow.test.ts
-│   ├── configuration-flow.test.ts
-│   └── error-handling.test.ts
-├── e2e/
-│   ├── suite/
-│   │   ├── basic-workflow.test.ts
-│   │   └── settings-configuration.test.ts
-│   └── runner.ts
+│   ├── core/
+│   ├── network/
+│   └── ui/
 ├── fixtures/
-│   ├── audio-samples/
-│   │   ├── sample.mp3
-│   │   └── sample.wav
-│   └── mock-responses/
-│       ├── openai-success.json
-│       └── openai-error.json
-└── helpers/
-    ├── mock-context.ts
-    ├── mock-stt-server.ts
-    └── test-utils.ts
+└── __mocks__/
+    └── vscode.ts                 # VS Code API mock
+
+desktop/tests/                    # Desktop app tests
+├── unit/
+│   ├── config-store.test.ts
+│   ├── secret-store.test.ts
+│   ├── hotkey.test.ts
+│   ├── paste.test.ts
+│   ├── tray.test.ts
+│   └── desktop-engine.test.ts
+└── __mocks__/
+    └── electron.ts               # Electron API mock
 ```
+
+### Two Test Suites
+
+| Suite | Command | Scope |
+|---|---|---|
+| Extension | `npx jest` (root) | Shared core + VS Code-specific code |
+| Desktop | `cd desktop && npx jest` | Desktop-specific code |
+
+Shared modules (adapters, audio, types) are tested once in the extension test suite. Desktop tests only cover desktop-specific code (config-store, tray, hotkey, paste, engine).
 
 ## Testing Tools & Frameworks
 
@@ -839,6 +828,6 @@ describe('Security: Input Validation', () => {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** February 11, 2026
+**Document Version:** 2.0
+**Last Updated:** February 20, 2026
 **Status:** Active - Test First, Code Second
