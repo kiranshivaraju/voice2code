@@ -56,6 +56,20 @@ npm run build
 npx electron dist/main.js
 ```
 
+### Running the App
+
+```bash
+cd desktop
+npm run build && npx electron dist/main.js
+```
+
+If already built, just run:
+
+```bash
+cd desktop
+npx electron dist/main.js
+```
+
 ### First Launch
 
 1. A **welcome window** appears explaining how to use Voice2Code
