@@ -95,16 +95,13 @@ export class TrayManager {
 
     const template: MenuItemConstructorOptions[] = [
       {
-        label: 'Start Recording',
-        enabled: this.state === 'idle',
-        visible: this.state === 'idle',
-        click: () => this.callbacks.onStartRecording?.(),
-      },
-      {
-        label: 'Stop Recording',
-        enabled: this.state === 'recording',
-        visible: this.state === 'recording',
-        click: () => this.callbacks.onStopRecording?.(),
+        label: this.state === 'idle'
+          ? 'Start Recording    \u2303\u21E7Space'
+          : 'Stop Recording     \u2303\u21E7Space',
+        enabled: this.state !== 'processing',
+        click: () => this.state === 'idle'
+          ? this.callbacks.onStartRecording?.()
+          : this.callbacks.onStopRecording?.(),
       },
       { type: 'separator' },
       {

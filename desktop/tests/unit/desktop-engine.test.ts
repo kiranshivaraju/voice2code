@@ -46,6 +46,8 @@ function createMocks() {
   const audioManager = {
     startCapture: jest.fn().mockResolvedValue(undefined),
     stopCapture: jest.fn().mockResolvedValue(Buffer.from('pcm-data')),
+    on: jest.fn().mockReturnThis(),
+    removeAllListeners: jest.fn().mockReturnThis(),
   };
 
   const audioEncoder = {
@@ -249,6 +251,17 @@ describe('DesktopEngine', () => {
       );
     });
 
+    it('should notify on STTError Invalid API key (revoked key)', async () => {
+      mocks.mockAdapter.transcribe.mockRejectedValue(
+        new STTError('Invalid API key')
+      );
+      await engine.toggleRecording();
+      expect(mocks.notify).toHaveBeenCalledWith(
+        'Authentication Failed',
+        'Your API key is invalid or revoked. Check Settings.'
+      );
+    });
+
     it('should notify on STTError 404', async () => {
       mocks.mockAdapter.transcribe.mockRejectedValue(
         new STTError('Model not found: 404')
@@ -395,6 +408,56 @@ describe('DesktopEngine', () => {
       await engineWithCommands.startRecording();
       await engineWithCommands.stopRecording();
       expect(mockExecutor.execute).toHaveBeenCalled();
+    });
+  });
+
+  describe('silence detection', () => {
+    it('should listen for audio data after starting recording', async () => {
+      await engine.toggleRecording();
+      expect(mocks.audioManager.on).toHaveBeenCalledWith('data', expect.any(Function));
+    });
+
+    it('should clean up listeners when stopping recording', async () => {
+      await engine.toggleRecording(); // start
+      await engine.toggleRecording(); // stop
+      expect(mocks.audioManager.removeAllListeners).toHaveBeenCalledWith('data');
+    });
+
+    it('should auto-stop recording on silence event', async () => {
+      // Capture the 'data' listener callback from audioManager.on
+      let dataCallback: ((chunk: Buffer) => void) | null = null;
+      mocks.audioManager.on.mockImplementation((event: string, cb: any) => {
+        if (event === 'data') dataCallback = cb;
+        return mocks.audioManager;
+      });
+
+      await engine.toggleRecording(); // start
+      expect(engine.getState()).toBe('recording');
+
+      // Simulate speech then silence to trigger auto-stop
+      jest.useFakeTimers();
+
+      // Loud chunk first (speech detected)
+      const loudBuf = Buffer.alloc(3200);
+      for (let s = 0; s < 1600; s++) {
+        loudBuf.writeInt16LE(16000 * (s % 2 === 0 ? 1 : -1), s * 2);
+      }
+      dataCallback!(loudBuf);
+      jest.advanceTimersByTime(100);
+
+      // Then 3.5 seconds of silence
+      const silentBuf = Buffer.alloc(3200); // 1600 samples * 2 bytes = 100ms at 16kHz
+      for (let i = 0; i < 35; i++) {
+        dataCallback!(silentBuf);
+        jest.advanceTimersByTime(100);
+      }
+      jest.useRealTimers();
+
+      // The silence event triggers stopRecording which calls stopCapture
+      // Flush async microtasks
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(mocks.audioManager.stopCapture).toHaveBeenCalled();
     });
   });
 

@@ -1,6 +1,8 @@
 # Voice2Code — Cross-Platform Testing Results
 
 > Sprint v1 · Version 0.1.0
+>
+> **Note:** This document is from Sprint v1 and covers the VS Code extension only. For the current desktop app (Sprint v4), see the [README](../README.md). Ollama references below are historical — the current supported providers are **vLLM, Groq, and OpenAI**.
 
 This document captures the cross-platform compatibility testing results for the Voice2Code VS Code extension. Testing covers installation, audio capture, STT integration, keyboard shortcuts, and UI on Windows, macOS, Linux, and Cursor IDE.
 

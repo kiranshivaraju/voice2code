@@ -155,3 +155,9 @@ button:disabled {
 .status.info {
   color: #666;
 }
+
+.hint {
+  font-size: 11px;
+  color: #999;
+  margin-top: 8px;
+}

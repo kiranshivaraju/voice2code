@@ -19,7 +19,7 @@ export async function pasteText(text: string, delayMs = 50): Promise<void> {
   try {
     await delay(delayMs);
     execSync('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
-    await delay(delayMs);
+    await delay(200); // wait for paste to complete before restoring
   } finally {
     clipboard.writeText(previous);
   }

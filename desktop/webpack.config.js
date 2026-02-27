@@ -47,6 +47,8 @@ module.exports = [
           { from: 'src/settings/settings.css', to: 'settings/settings.css' },
           { from: 'src/history/history.html', to: 'history/history.html' },
           { from: 'src/history/history.css', to: 'history/history.css' },
+          { from: 'src/welcome/welcome.html', to: 'welcome/welcome.html' },
+          { from: 'src/welcome/welcome.css', to: 'welcome/welcome.css' },
         ],
       }),
     ],
@@ -79,6 +81,17 @@ module.exports = [
     entry: './src/settings/settings-renderer.ts',
     output: {
       filename: 'settings/settings-renderer.js',
+      path: path.resolve(__dirname, 'dist'),
+    },
+    externals: {},
+  },
+  // Welcome renderer
+  {
+    ...commonConfig,
+    target: 'web',
+    entry: './src/welcome/welcome-renderer.ts',
+    output: {
+      filename: 'welcome/welcome-renderer.js',
       path: path.resolve(__dirname, 'dist'),
     },
     externals: {},

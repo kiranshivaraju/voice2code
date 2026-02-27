@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self';">
+  <title>Welcome to Voice2Code</title>
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Welcome to Voice2Code</h1>
+    <p class="subtitle">Speech-to-text, right from your menu bar.</p>
+
+    <section class="section">
+      <h2>Recording</h2>
+      <p>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> to start recording.</p>
+      <p>Speak naturally — recording auto-stops after <strong>3 seconds of silence</strong>, or press the hotkey again to stop manually.</p>
+      <p>The transcribed text is pasted into whichever app is focused.</p>
+    </section>
+
+    <section class="section">
+      <h2>Menu Bar</h2>
+      <p>Click the <strong>mic icon</strong> in the menu bar to access:</p>
+      <ul>
+        <li><strong>Start / Stop Recording</strong> — same as the hotkey</li>
+        <li><strong>History</strong> — view past transcriptions</li>
+        <li><strong>Settings</strong> — configure endpoint, API key, audio</li>
+        <li><strong>Test Connection</strong> — verify your STT endpoint</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>Setup</h2>
+      <p>Before your first recording, open <strong>Settings</strong> and configure:</p>
+      <ol>
+        <li>Your STT endpoint URL (Groq, OpenAI, or self-hosted)</li>
+        <li>Your API key (if required)</li>
+        <li>Model and language preferences</li>
+      </ol>
+    </section>
+
+    <div class="actions">
+      <button id="btn-get-started" class="btn-primary">Get Started</button>
+    </div>
+  </div>
+  <script src="welcome-renderer.js"></script>
+</body>
+</html>

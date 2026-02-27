@@ -11,12 +11,15 @@ import { pasteText } from './paste';
 import { CommandParser } from './command-parser';
 import { CommandExecutor } from './command-executor';
 import { HistoryStore } from './history-store';
+import { SilenceDetector } from './silence-detector';
 
 type NotifyFn = (title: string, body: string) => void;
 
 interface AudioManagerLike {
   startCapture(config: { deviceId: string; sampleRate: number; format: string }): Promise<void>;
   stopCapture(): Promise<Buffer>;
+  on(event: string, listener: (...args: any[]) => void): this;
+  removeAllListeners(event?: string): this;
 }
 
 interface AudioEncoderLike {
@@ -31,6 +34,7 @@ interface AdapterFactoryLike {
 
 export class DesktopEngine {
   private state: RecordingState = 'idle';
+  private silenceDetector: SilenceDetector | null = null;
 
   private commandExecutor: CommandExecutor;
 
@@ -70,6 +74,13 @@ export class DesktopEngine {
     try {
       const audioConfig = this.configStore.getAudioConfig();
       await this.audioManager.startCapture(audioConfig);
+
+      // Wire silence detection for auto-stop
+      this.silenceDetector = new SilenceDetector();
+      this.silenceDetector.on('silence', () => this.stopRecording());
+      this.audioManager.on('data', (chunk: Buffer) => {
+        this.silenceDetector?.processChunk(chunk);
+      });
     } catch (error) {
       this.state = 'idle';
       this.trayManager.setState('idle');
@@ -79,6 +90,12 @@ export class DesktopEngine {
 
   async stopRecording(): Promise<void> {
     if (this.state !== 'recording') return;
+
+    // Clean up silence detector and audio data listeners
+    this.silenceDetector?.reset();
+    this.silenceDetector?.removeAllListeners();
+    this.silenceDetector = null;
+    this.audioManager.removeAllListeners('data');
 
     this.state = 'processing';
     this.trayManager.setState('processing');
@@ -100,7 +117,7 @@ export class DesktopEngine {
       if (uiConfig.voiceCommandsEnabled) {
         const parser = new CommandParser(uiConfig.customCommands);
         const segments = parser.parse(result.text);
-        this.commandExecutor.execute(segments);
+        await this.commandExecutor.execute(segments);
       } else {
         await pasteText(result.text);
       }
@@ -131,7 +148,9 @@ export class DesktopEngine {
         this.notify('Network Error', message);
       }
     } else if (error instanceof STTError) {
-      if (error.message.includes('not found') || error.message.includes('404')) {
+      if (error.message.includes('Invalid API key') || error.message.includes('401') || error.message.includes('Unauthorized')) {
+        this.notify('Authentication Failed', 'Your API key is invalid or revoked. Check Settings.');
+      } else if (error.message.includes('not found') || error.message.includes('404')) {
         this.notify('Model Not Found', 'Check the model name in Settings.');
       } else if (error.message.includes('Rate limit') || error.message.includes('429')) {
         this.notify('Rate Limited', 'Too many requests. Wait a moment and try again.');

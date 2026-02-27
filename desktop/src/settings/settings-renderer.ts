@@ -7,7 +7,7 @@ declare global {
     settingsAPI: {
       getConfig(): Promise<{
         endpoint: { url: string; model: string; timeout: number; language: string };
-        audio: { sampleRate: number; format: string };
+        audio: { sampleRate: number; format: string; deviceId?: string };
         ui: { showNotifications: boolean };
       }>;
       saveConfig(config: unknown): Promise<{ success: boolean; error?: string }>;
@@ -34,10 +34,30 @@ function setButtonsDisabled(disabled: boolean, ...buttons: HTMLButtonElement[]) 
   buttons.forEach(btn => btn.disabled = disabled);
 }
 
+function getFormConfig() {
+  return {
+    endpoint: {
+      url: ($('endpoint-url') as HTMLInputElement).value,
+      model: ($('endpoint-model') as HTMLInputElement).value,
+      language: ($('endpoint-language') as HTMLInputElement).value,
+      timeout: parseInt(($('endpoint-timeout') as HTMLInputElement).value, 10),
+    },
+    audio: {
+      format: ($('audio-format') as HTMLSelectElement).value,
+      sampleRate: parseInt(($('audio-sample-rate') as HTMLSelectElement).value, 10),
+      deviceId: ($('audio-device') as HTMLSelectElement).value,
+    },
+  };
+}
+
+async function saveSettings(): Promise<{ success: boolean; error?: string }> {
+  return window.settingsAPI.saveConfig(getFormConfig());
+}
+
 async function loadConfig() {
   const config = await window.settingsAPI.getConfig();
 
-  ($ ('endpoint-url') as HTMLInputElement).value = config.endpoint.url;
+  ($('endpoint-url') as HTMLInputElement).value = config.endpoint.url;
   ($('endpoint-model') as HTMLInputElement).value = config.endpoint.model;
   ($('endpoint-language') as HTMLInputElement).value = config.endpoint.language;
   ($('endpoint-timeout') as HTMLInputElement).value = String(config.endpoint.timeout);
@@ -45,7 +65,7 @@ async function loadConfig() {
   ($('audio-format') as HTMLSelectElement).value = config.audio.format;
   ($('audio-sample-rate') as HTMLSelectElement).value = String(config.audio.sampleRate);
 
-  await loadDevices((config.audio as any).deviceId || 'default');
+  await loadDevices(config.audio.deviceId || 'default');
 }
 
 async function loadDevices(selectedId: string = 'default') {
@@ -82,44 +102,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Save Settings
   btnSave.addEventListener('click', async () => {
-    setButtonsDisabled(true, btnSave);
-    const config = {
-      endpoint: {
-        url: ($('endpoint-url') as HTMLInputElement).value,
-        model: ($('endpoint-model') as HTMLInputElement).value,
-        language: ($('endpoint-language') as HTMLInputElement).value,
-        timeout: parseInt(($('endpoint-timeout') as HTMLInputElement).value, 10),
-      },
-      audio: {
-        format: ($('audio-format') as HTMLSelectElement).value,
-        sampleRate: parseInt(($('audio-sample-rate') as HTMLSelectElement).value, 10),
-        deviceId: ($('audio-device') as HTMLSelectElement).value,
-      },
-    };
-
-    const result = await window.settingsAPI.saveConfig(config);
+    setButtonsDisabled(true, btnSave, btnTest);
+    const result = await saveSettings();
     const statusEl = $('save-status');
     if (result.success) {
       showStatus(statusEl, 'Saved', 'success');
     } else {
       showStatus(statusEl, result.error || 'Failed to save', 'error');
     }
-    setButtonsDisabled(false, btnSave);
+    setButtonsDisabled(false, btnSave, btnTest);
   });
 
-  // Test Connection
+  // Test Connection — saves settings first, then tests
   btnTest.addEventListener('click', async () => {
-    setButtonsDisabled(true, btnTest);
-    const statusEl = $('test-connection-status');
-    showStatus(statusEl, 'Testing...', 'info');
+    setButtonsDisabled(true, btnSave, btnTest);
+    const saveStatusEl = $('save-status');
+    const testStatusEl = $('test-connection-status');
 
+    // Save first
+    showStatus(testStatusEl, 'Saving settings...', 'info');
+    const saveResult = await saveSettings();
+    if (!saveResult.success) {
+      showStatus(saveStatusEl, saveResult.error || 'Failed to save', 'error');
+      showStatus(testStatusEl, 'Fix settings before testing', 'error');
+      setButtonsDisabled(false, btnSave, btnTest);
+      return;
+    }
+    showStatus(saveStatusEl, 'Saved', 'success');
+
+    // Then test
+    showStatus(testStatusEl, 'Testing...', 'info');
     const result = await window.settingsAPI.testConnection();
     if (result.success) {
-      showStatus(statusEl, `Connected (${result.latencyMs}ms)`, 'success');
+      showStatus(testStatusEl, `Connected (${result.latencyMs}ms)`, 'success');
     } else {
-      showStatus(statusEl, result.error || 'Connection failed', 'error');
+      showStatus(testStatusEl, result.error || 'Connection failed', 'error');
     }
-    setButtonsDisabled(false, btnTest);
+    setButtonsDisabled(false, btnSave, btnTest);
   });
 
   // Save API Key

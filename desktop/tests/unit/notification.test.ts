@@ -66,4 +66,35 @@ describe('createNotifier', () => {
     notify('C', 'D');
     expect(mockGetUIConfig).toHaveBeenCalledTimes(2);
   });
+
+  it('should always show error notifications even when showNotifications is false', () => {
+    mockGetUIConfig.mockReturnValue({ showNotifications: false });
+    const notify = createNotifier(mockGetUIConfig);
+
+    notify('Connection Failed', 'Cannot connect');
+    expect(MockNotification).toHaveBeenCalledTimes(1);
+
+    notify('Authentication Failed', 'Check API key');
+    expect(MockNotification).toHaveBeenCalledTimes(2);
+
+    notify('Network Error', 'Some issue');
+    expect(MockNotification).toHaveBeenCalledTimes(3);
+
+    notify('Model Not Found', 'Check model');
+    expect(MockNotification).toHaveBeenCalledTimes(4);
+
+    notify('Rate Limited', 'Too many requests');
+    expect(MockNotification).toHaveBeenCalledTimes(5);
+
+    notify('Connection Timed Out', 'Took too long');
+    expect(MockNotification).toHaveBeenCalledTimes(6);
+  });
+
+  it('should still suppress non-error notifications when showNotifications is false', () => {
+    mockGetUIConfig.mockReturnValue({ showNotifications: false });
+    const notify = createNotifier(mockGetUIConfig);
+
+    notify('Connection OK', 'Connected successfully');
+    expect(MockNotification).not.toHaveBeenCalled();
+  });
 });

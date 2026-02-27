@@ -96,6 +96,7 @@ export class AudioManager extends EventEmitter {
     const stream = this._recording.stream();
     stream.on('data', (chunk: Buffer) => {
       this._audioChunks.push(chunk);
+      this.emit('data', chunk);
     });
     stream.on('error', (err: Error) => {
       this.emit('error', err);

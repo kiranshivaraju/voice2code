@@ -46,14 +46,15 @@ describe('Webpack Build Verification', () => {
     expect(fs.existsSync(path.join(distDir, 'preload.js.map'))).toBe(true);
   });
 
-  it('webpack config should have four entry points', () => {
+  it('webpack config should have five entry points', () => {
     const config = require('../../webpack.config.js');
     expect(Array.isArray(config)).toBe(true);
-    expect(config).toHaveLength(4);
+    expect(config).toHaveLength(5);
     expect(config[0].target).toBe('electron-main');
     expect(config[1].target).toBe('web'); // history renderer
     expect(config[2].target).toBe('electron-preload');
     expect(config[3].target).toBe('web'); // settings renderer
+    expect(config[4].target).toBe('web'); // welcome renderer
   });
 
   it('webpack config should use transpileOnly for ts-loader', () => {

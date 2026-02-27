@@ -20,6 +20,7 @@ import { DesktopEngine } from './desktop-engine';
 import { SettingsWindow } from './settings-window';
 import { HistoryStore } from './history-store';
 import { HistoryWindow } from './history-window';
+import { WelcomeWindow } from './welcome-window';
 import { createNotifier } from './notification';
 import { checkAccessibility } from './accessibility';
 
@@ -92,14 +93,18 @@ app.on('ready', () => {
   );
 
   // Register hotkey
-  hotkeyManager = new HotkeyManager('CommandOrControl+Shift+V');
+  hotkeyManager = new HotkeyManager('Control+Shift+Space');
   const registered = hotkeyManager.register(() => engine.toggleRecording());
   if (!registered) {
     showNotification(
       'Shortcut Unavailable',
-      'Cmd+Shift+V is already in use by another app. Change the shortcut in Settings.'
+      'Ctrl+Shift+Space is already in use by another app. Change the shortcut in Settings.'
     );
   }
+
+  // Show welcome guide
+  const welcomeWindow = new WelcomeWindow();
+  welcomeWindow.show();
 
   // Wire tray callbacks
   trayManager.setOnStartRecording(() => engine.toggleRecording());

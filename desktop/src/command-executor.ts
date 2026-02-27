@@ -24,7 +24,7 @@ const KEYSTROKE_MAP: Record<string, string> = {
 };
 
 export class CommandExecutor {
-  execute(segments: ParsedSegment[]): void {
+  async execute(segments: ParsedSegment[]): Promise<void> {
     const savedClipboard = clipboard.readText();
     try {
       for (const segment of segments) {
@@ -34,6 +34,7 @@ export class CommandExecutor {
           execSync(
             'osascript -e \'tell application "System Events" to keystroke "v" using command down\''
           );
+          await new Promise(resolve => setTimeout(resolve, 200));
         } else {
           const keystroke = KEYSTROKE_MAP[segment.value];
           if (keystroke) {
