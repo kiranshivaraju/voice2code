@@ -24,6 +24,11 @@ describe('TrayManager', () => {
     trayManager.destroy();
   });
 
+  function getLatestTemplate(): any[] {
+    const calls = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
   describe('create', () => {
     it('should create tray with idle icon', () => {
       trayManager.create();
@@ -56,14 +61,10 @@ describe('TrayManager', () => {
       trayManager.setState('recording');
 
       expect(nativeImage.createFromPath).toHaveBeenCalledWith(iconPaths.recording);
-      const trayInstance = (Tray as unknown as jest.Mock).mock.results[0]?.value;
-      // Access the actual tray instance created during create()
-      // Since we cleared mocks, we need to check the setImage was called
     });
 
     it('should update icon when setState("processing") called', () => {
       trayManager.create();
-      const trayInstance = (Tray as unknown as jest.Mock).mock.results[0].value;
       jest.clearAllMocks();
 
       trayManager.setState('processing');
@@ -82,7 +83,6 @@ describe('TrayManager', () => {
     });
 
     it('should do nothing if tray not created', () => {
-      // Should not throw
       expect(() => trayManager.setState('recording')).not.toThrow();
     });
 
@@ -97,24 +97,18 @@ describe('TrayManager', () => {
   });
 
   describe('context menu structure', () => {
-    it('should have correct menu items in idle state', () => {
+    it('should show "Start Recording" with hotkey in idle state', () => {
       trayManager.create();
+      const template = getLatestTemplate();
 
-      const template = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls[0][0];
-
-      // Find relevant items
-      const startItem = template.find((i: any) => i.label === 'Start Recording');
-      const stopItem = template.find((i: any) => i.label === 'Stop Recording');
+      const recordItem = template.find((i: any) => i.label && i.label.includes('Start Recording'));
       const settingsItem = template.find((i: any) => i.label === 'Settings...');
       const testItem = template.find((i: any) => i.label === 'Test Connection');
       const quitItem = template.find((i: any) => i.label === 'Quit Voice2Code');
 
-      expect(startItem).toBeDefined();
-      expect(startItem.visible).toBe(true);
-      expect(startItem.enabled).toBe(true);
-
-      expect(stopItem).toBeDefined();
-      expect(stopItem.visible).toBe(false);
+      expect(recordItem).toBeDefined();
+      expect(recordItem.label).toContain('\u2303');
+      expect(recordItem.enabled).toBe(true);
 
       expect(settingsItem).toBeDefined();
       expect(testItem).toBeDefined();
@@ -122,27 +116,30 @@ describe('TrayManager', () => {
       expect(quitItem).toBeDefined();
     });
 
-    it('should show Stop Recording and hide Start Recording when recording', () => {
+    it('should show "Stop Recording" with hotkey when recording', () => {
       trayManager.create();
       trayManager.setState('recording');
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
+      const recordItem = template.find((i: any) => i.label && i.label.includes('Stop Recording'));
+      expect(recordItem).toBeDefined();
+      expect(recordItem.label).toContain('\u2303');
+      expect(recordItem.enabled).toBe(true);
+    });
 
-      const startItem = template.find((i: any) => i.label === 'Start Recording');
-      const stopItem = template.find((i: any) => i.label === 'Stop Recording');
+    it('should disable recording item during processing', () => {
+      trayManager.create();
+      trayManager.setState('processing');
+      const template = getLatestTemplate();
 
-      expect(startItem.visible).toBe(false);
-      expect(stopItem.visible).toBe(true);
-      expect(stopItem.enabled).toBe(true);
+      const recordItem = template[0];
+      expect(recordItem.enabled).toBe(false);
     });
 
     it('should disable Test Connection during processing', () => {
       trayManager.create();
       trayManager.setState('processing');
-
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
+      const template = getLatestTemplate();
 
       const testItem = template.find((i: any) => i.label === 'Test Connection');
       expect(testItem.enabled).toBe(false);
@@ -150,30 +147,38 @@ describe('TrayManager', () => {
   });
 
   describe('callbacks', () => {
-    it('should invoke onStartRecording callback', () => {
+    it('should invoke onStartRecording callback in idle state', () => {
       const callback = jest.fn();
       trayManager.create();
       trayManager.setOnStartRecording(callback);
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
-      const startItem = template.find((i: any) => i.label === 'Start Recording');
-      startItem.click();
+      const recordItem = template.find((i: any) => i.label && i.label.includes('Start Recording'));
+      recordItem.click();
 
       expect(callback).toHaveBeenCalled();
     });
 
-    it('should invoke onStopRecording callback', () => {
+    it('should invoke onStopRecording callback in recording state', () => {
       const callback = jest.fn();
       trayManager.create();
       trayManager.setState('recording');
       trayManager.setOnStopRecording(callback);
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
-      const stopItem = template.find((i: any) => i.label === 'Stop Recording');
-      stopItem.click();
+      const recordItem = template.find((i: any) => i.label && i.label.includes('Stop Recording'));
+      recordItem.click();
 
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('should invoke onOpenHistory callback', () => {
+      const callback = jest.fn();
+      trayManager.create();
+      trayManager.setOnOpenHistory(callback);
+      const template = getLatestTemplate();
+
+      template.find((i: any) => i.label === 'History').click();
       expect(callback).toHaveBeenCalled();
     });
 
@@ -181,12 +186,9 @@ describe('TrayManager', () => {
       const callback = jest.fn();
       trayManager.create();
       trayManager.setOnOpenSettings(callback);
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
-      const item = template.find((i: any) => i.label === 'Settings...');
-      item.click();
-
+      template.find((i: any) => i.label === 'Settings...').click();
       expect(callback).toHaveBeenCalled();
     });
 
@@ -194,12 +196,9 @@ describe('TrayManager', () => {
       const callback = jest.fn();
       trayManager.create();
       trayManager.setOnTestConnection(callback);
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
-      const item = template.find((i: any) => i.label === 'Test Connection');
-      item.click();
-
+      template.find((i: any) => i.label === 'Test Connection').click();
       expect(callback).toHaveBeenCalled();
     });
 
@@ -207,12 +206,9 @@ describe('TrayManager', () => {
       const callback = jest.fn();
       trayManager.create();
       trayManager.setOnQuit(callback);
+      const template = getLatestTemplate();
 
-      const lastCall = (Menu.buildFromTemplate as unknown as jest.Mock).mock.calls;
-      const template = lastCall[lastCall.length - 1][0];
-      const item = template.find((i: any) => i.label === 'Quit Voice2Code');
-      item.click();
-
+      template.find((i: any) => i.label === 'Quit Voice2Code').click();
       expect(callback).toHaveBeenCalled();
     });
   });

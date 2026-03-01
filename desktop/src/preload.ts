@@ -20,3 +20,7 @@ contextBridge.exposeInMainWorld('historyAPI', {
   clearHistory: () => ipcRenderer.invoke('history:clear'),
   copyEntry: (id: string) => ipcRenderer.invoke('history:copy', { id }),
 });
+
+contextBridge.exposeInMainWorld('welcomeAPI', {
+  close: () => ipcRenderer.invoke('welcome:close'),
+});

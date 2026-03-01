@@ -44,6 +44,8 @@ function createIntegrationMocks() {
   const audioManager = {
     startCapture: jest.fn().mockResolvedValue(undefined),
     stopCapture: jest.fn().mockResolvedValue(Buffer.from('raw-pcm-audio-data')),
+    on: jest.fn().mockReturnThis(),
+    removeAllListeners: jest.fn().mockReturnThis(),
   };
 
   const audioEncoder = {

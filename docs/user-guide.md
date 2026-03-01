@@ -1,315 +1,211 @@
 # Voice2Code — User Guide
 
-> Version 0.1.0 · Sprint v1
-
-Voice2Code is a privacy-focused speech-to-text VS Code extension that lets you dictate code and documentation directly into your editor using local or self-hosted AI models.
+> Voice2Code is a speech-to-text tool for developers, available as a macOS menu bar desktop app and a VS Code/Cursor extension.
 
 ---
 
 ## Table of Contents
 
-1. [Installation](#1-installation)
-2. [Setting Up a Local STT Backend](#2-setting-up-a-local-stt-backend)
-3. [Configuring Voice2Code](#3-configuring-voice2code)
-4. [Using the Extension](#4-using-the-extension)
-5. [Keyboard Shortcuts](#5-keyboard-shortcuts)
-6. [Settings Reference](#6-settings-reference)
-7. [API Key Configuration (SecretStorage)](#7-api-key-configuration-secretstorage)
-8. [FAQ](#8-faq)
+1. [Desktop App](#1-desktop-app)
+2. [VS Code Extension](#2-vs-code-extension)
+3. [Setting Up an STT Provider](#3-setting-up-an-stt-provider)
+4. [Extension Settings Reference](#4-extension-settings-reference)
+5. [FAQ](#5-faq)
 
 ---
 
-## 1. Installation
+## 1. Desktop App
 
-### From a VSIX File
-
-If you have a `.vsix` package (e.g., downloaded from a release or built locally):
-
-```bash
-code --install-extension voice2code-0.1.0.vsix
-```
-
-Or from inside VS Code:
-1. Open the Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`)
-2. Click the `···` menu (top-right of the panel)
-3. Select **Install from VSIX...**
-4. Choose the `.vsix` file
-
-### Building from Source
+### Installation
 
 Prerequisites:
-- Node.js **v20.18.1 or later** (v18 is not supported)
-- npm
+- macOS
+- Node.js v20.18.1 or later
+- sox: `brew install sox`
+
+```bash
+git clone https://github.com/kiranshivaraju/voice2code.git
+cd voice2code/desktop
+npm install
+npm run build
+npx electron dist/main.js
+```
+
+### Quick Start
+
+1. A **welcome window** appears on launch explaining all features
+2. Open **Settings** from the tray menu and configure your STT endpoint + API key
+3. Click **Test Connection** to verify
+4. Press **`Ctrl+Shift+Space`** to start recording
+5. Speak naturally — recording **auto-stops after 3 seconds of silence**
+6. Transcribed text is pasted into the focused app
+
+### Hotkey
+
+| Action | Shortcut |
+|---|---|
+| Start / Stop Recording | `Ctrl+Shift+Space` |
+
+You can also use the tray menu to start/stop recording.
+
+### Tray Menu
+
+Click the mic icon in the menu bar:
+
+- **Start / Stop Recording** — toggle with hotkey shown
+- **History** — view past transcriptions with timestamps
+- **Settings** — configure endpoint, API key, audio device
+- **Test Connection** — verify STT endpoint connectivity
+- **Quit Voice2Code** — exit the app
+
+### Settings
+
+Open Settings from the tray menu to configure:
+
+- **Endpoint**: URL, model, language, timeout
+- **API Key**: stored encrypted locally
+- **Audio**: microphone device, format (MP3/WAV), sample rate
+
+Settings are auto-saved before testing the connection.
+
+### Voice Commands
+
+When enabled (default), these phrases trigger keystrokes instead of text:
+
+| Voice Phrase | Action |
+|---|---|
+| "new line" | Insert line break |
+| "tab" | Insert tab |
+| "enter" | Press Enter |
+| "backspace" / "delete" | Delete character |
+| "select all" | Select all text |
+| "undo" / "redo" | Undo/redo |
+| "copy that" / "paste that" / "cut that" | Clipboard operations |
+| "escape" | Press Escape |
+| "space" | Insert space |
+
+Custom commands can be defined in Settings.
+
+### Silence Detection
+
+Recording auto-stops after **3 seconds of continuous silence**. You don't need to press the hotkey to stop — just stop talking and wait. You can also press `Ctrl+Shift+Space` again to stop manually at any time.
+
+---
+
+## 2. VS Code Extension
+
+### Installation
 
 ```bash
 git clone https://github.com/kiranshivaraju/voice2code.git
 cd voice2code
-
 npm install
 npm run compile
-npm run package        # creates voice2code-0.1.0.vsix
-
-code --install-extension voice2code-0.1.0.vsix
+npm run package
+code --install-extension voice2code-*.vsix
 ```
 
-### Cursor IDE
+For Cursor: `cursor --install-extension voice2code-*.vsix`
 
-1. Open Extensions (`Ctrl+Shift+X`)
-2. Click `···` → **Install from VSIX...**
-3. Select the `.vsix` file
+### Usage
 
-All features work identically in Cursor.
+1. **Start recording**: Press `Ctrl+Shift+V` (Windows/Linux) or `Cmd+Shift+V` (macOS)
+2. **Speak** your code or text
+3. **Stop recording**: Press the same shortcut again
+4. **Text is inserted** at your cursor position
+
+### Status Bar
+
+| Icon | State |
+|---|---|
+| `$(mic) Voice2Code` | Idle — ready to record |
+| `$(record) Voice2Code` | Recording (red) |
+| `$(sync~spin) Voice2Code` | Processing (yellow) |
+
+### Commands (Command Palette)
+
+- **Voice2Code: Toggle Recording** — start or stop
+- **Voice2Code: Test Connection** — verify endpoint
+- **Voice2Code: Open Settings** — open settings
+- **Voice2Code: Set API Key** — store API key securely
+- **Voice2Code: Delete API Key** — remove stored key
+- **Voice2Code: Show History** — view transcription history
 
 ---
 
-## 2. Setting Up a Local STT Backend
+## 3. Setting Up an STT Provider
 
-Voice2Code is model-agnostic. You can use any STT provider that exposes an HTTP API.
+Voice2Code works with any OpenAI-compatible STT endpoint.
 
-### Option A: Ollama (Recommended for Privacy)
+### vLLM (Local, Free)
 
-Ollama runs Whisper models locally. No data leaves your machine.
-
-```bash
-# 1. Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# 2. Pull the Whisper model
-ollama pull whisper
-
-# 3. Start Ollama (runs automatically after install)
-ollama serve
-```
-
-Verify it's running:
-```bash
-curl http://localhost:11434
-# Expected: {"status":"Ollama is running"}
-```
-
-Configure Voice2Code:
-- **Endpoint URL:** `http://localhost:11434/api/transcribe`
-- **Model:** `whisper`
-
-### Option B: vLLM (GPU-accelerated, Self-hosted)
-
-vLLM provides an OpenAI-compatible API with GPU acceleration.
+Run Whisper models locally. No data leaves your machine.
 
 ```bash
-# 1. Install vLLM
-pip install vllm
-
-# 2. Start the server with Whisper
-python -m vllm.entrypoints.openai.api_server \
-  --model openai/whisper-large-v3 \
-  --port 8000
+pip install -U "vllm[audio]"
+vllm serve openai/whisper-large-v3
 ```
 
-Verify it's running:
-```bash
-curl http://localhost:8000/health
-```
+| Setting | Value |
+|---|---|
+| Endpoint URL | `http://localhost:8000/v1/audio/transcriptions` |
+| Model | `openai/whisper-large-v3` |
+| API Key | Not required |
 
-Configure Voice2Code:
-- **Endpoint URL:** `http://localhost:8000/v1/audio/transcriptions`
-- **Model:** `whisper-large-v3`
-- **API Key:** Set your vLLM API key in SecretStorage (see [Section 7](#7-api-key-configuration-secretstorage))
+### Groq (Cloud, Free Tier)
 
-### Option C: OpenAI Whisper API (Cloud)
+1. Get a free API key at [console.groq.com](https://console.groq.com)
 
-For convenience, Voice2Code supports OpenAI's hosted Whisper API.
+| Setting | Value |
+|---|---|
+| Endpoint URL | `https://api.groq.com/openai/v1/audio/transcriptions` |
+| Model | `whisper-large-v3` |
+| API Key | Your Groq key (`gsk_...`) |
 
-> Note: This sends audio to OpenAI servers. Use only if privacy is not a concern.
+### OpenAI (Cloud, Paid)
 
-Configure Voice2Code:
-- **Endpoint URL:** `https://api.openai.com/v1/audio/transcriptions`
-- **Model:** `whisper-1`
-- **API Key:** Set your OpenAI API key in SecretStorage (see [Section 7](#7-api-key-configuration-secretstorage))
+1. Get an API key at [platform.openai.com](https://platform.openai.com)
+
+| Setting | Value |
+|---|---|
+| Endpoint URL | `https://api.openai.com/v1/audio/transcriptions` |
+| Model | `whisper-1` |
+| API Key | Your OpenAI key (`sk-...`) |
 
 ---
 
-## 3. Configuring Voice2Code
+## 4. Extension Settings Reference
 
-### Via VS Code Settings UI
+All VS Code settings are under the `voice2code` namespace.
 
-1. Open Settings (`Ctrl+,` / `Cmd+,`)
-2. Search for `voice2code`
-3. All settings appear under **Voice2Code**
-
-### Via settings.json
-
-Add to your VS Code `settings.json` (`Ctrl+Shift+P` → "Open User Settings (JSON)"):
-
-```json
-{
-  "voice2code.endpoint.url": "http://localhost:11434/api/transcribe",
-  "voice2code.endpoint.model": "whisper",
-  "voice2code.endpoint.timeout": 30000,
-  "voice2code.audio.deviceId": "default",
-  "voice2code.audio.sampleRate": 16000,
-  "voice2code.audio.format": "mp3",
-  "voice2code.ui.showStatusBar": true
-}
-```
-
-### Testing Your Setup
-
-After configuring, run:
-
-1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Type `Voice2Code: Test Connection`
-3. Press Enter
-
-You'll see a success or failure notification. If it fails, check that your STT backend is running and the endpoint URL is correct.
-
----
-
-## 4. Using the Extension
-
-### Basic Dictation Workflow
-
-1. **Open a file** in the editor (any language)
-2. **Position your cursor** where you want text inserted
-3. **Start recording**: Press `Ctrl+Shift+V` (Windows/Linux) or `Cmd+Shift+V` (macOS)
-   - The status bar shows `$(record) Voice2Code` (red icon)
-4. **Speak** your code or text clearly
-5. **Stop recording**: Press the same shortcut again
-   - The status bar shows `$(sync~spin) Voice2Code` while processing
-6. **Text is inserted** at the cursor position
-
-### Status Bar Indicator
-
-The status bar (bottom-right) shows the current state:
-
-| Icon | State | Meaning |
+| Setting | Default | Description |
 |---|---|---|
-| `$(mic) Voice2Code` | Idle | Ready to record |
-| `$(record) Voice2Code` | Recording | Capturing audio (red) |
-| `$(sync~spin) Voice2Code` | Processing | Transcribing audio (yellow) |
-
-### Recording Tips
-
-- Speak at a normal pace — pausing briefly between phrases improves accuracy
-- Dictate punctuation explicitly: "function foo open paren close paren"
-- For code symbols: "equals equals equals", "greater than", "less than or equal to"
-- Background noise reduces accuracy — use a headset for best results
-
-### Commands Available via Command Palette
-
-Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type `Voice2Code`:
-
-- **Voice2Code: Start Recording** — Begin audio capture
-- **Voice2Code: Stop Recording** — End recording and transcribe
-- **Voice2Code: Toggle Recording** — Start or stop (same command)
-- **Voice2Code: Test Connection** — Test your STT endpoint
-- **Voice2Code: Open Settings** — Jump to Voice2Code settings
+| `voice2code.endpoint.url` | `http://localhost:8000/v1/audio/transcriptions` | STT endpoint URL |
+| `voice2code.endpoint.model` | `whisper-large-v3` | Model name |
+| `voice2code.endpoint.timeout` | `30000` | Request timeout (ms) |
+| `voice2code.audio.deviceId` | `default` | Audio input device |
+| `voice2code.audio.sampleRate` | `16000` | Sample rate (Hz) |
+| `voice2code.audio.format` | `mp3` | Audio format (`mp3` or `wav`) |
 
 ---
 
-## 5. Keyboard Shortcuts
-
-| Action | Windows / Linux | macOS |
-|---|---|---|
-| Toggle Recording | `Ctrl+Shift+V` | `Cmd+Shift+V` |
-
-### Customising the Shortcut
-
-1. Open Keyboard Shortcuts (`Ctrl+K Ctrl+S` / `Cmd+K Cmd+S`)
-2. Search for `voice2code.toggleRecording`
-3. Click the pencil icon to edit
-4. Press your desired key combination
-
----
-
-## 6. Settings Reference
-
-All settings are under the `voice2code` namespace.
-
-### Endpoint Settings
-
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `voice2code.endpoint.url` | string | `http://localhost:11434/api/transcribe` | STT endpoint URL |
-| `voice2code.endpoint.model` | string | `whisper-large-v3` | Model name sent in requests |
-| `voice2code.endpoint.timeout` | number | `30000` | Request timeout in milliseconds (1000–300000) |
-
-### Audio Settings
-
-| Setting | Type | Default | Options | Description |
-|---|---|---|---|---|
-| `voice2code.audio.deviceId` | string | `default` | — | Audio input device ID |
-| `voice2code.audio.sampleRate` | number | `16000` | — | Sample rate in Hz |
-| `voice2code.audio.format` | string | `mp3` | `mp3`, `wav` | Audio encoding format |
-
-### UI Settings
-
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `voice2code.ui.showStatusBar` | boolean | `true` | Show status bar indicator |
-| `voice2code.ui.previewEnabled` | boolean | `true` | Show transcription preview before insertion |
-| `voice2code.ui.audioFeedback` | boolean | `true` | Play audio feedback on start/stop |
-
-### History Settings
-
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `voice2code.history.enabled` | boolean | `false` | Enable transcription history |
-| `voice2code.history.maxItems` | number | `50` | Maximum history items to store |
-
----
-
-## 7. API Key Configuration (SecretStorage)
-
-For providers that require authentication (vLLM with auth, OpenAI), Voice2Code uses VS Code's SecretStorage to store API keys securely. Keys are encrypted at rest and never written to settings files.
-
-> In v0.1.0, API key entry is handled automatically when a request requires authentication. The key is stored under `voice2code.apiKey` in VS Code SecretStorage.
-
-To clear a stored key:
-1. Open Command Palette
-2. Run `Developer: Clear All Storage` (this clears all extension secret storage)
-
-Or manage via the VS Code SecretStorage API directly if you are a developer.
-
----
-
-## 8. FAQ
+## 5. FAQ
 
 **Q: Does Voice2Code send audio to the cloud?**
-
-A: Only if you configure it to. When using Ollama or a local vLLM instance, all audio is processed on your machine. For OpenAI Whisper API, audio is sent to OpenAI servers.
+A: Only if you configure a cloud provider (Groq, OpenAI). With vLLM, all processing is local.
 
 **Q: Why does recording fail immediately?**
-
-A: The extension may not be able to access your microphone. Check:
-- Microphone is connected and not muted
-- OS-level microphone permission is granted (especially macOS)
-- On Linux: `sox` is installed (`sudo apt-get install sox`)
+A: Check that your microphone is connected, OS permission is granted, and `sox` is installed (`brew install sox`).
 
 **Q: What audio format should I use?**
-
-A: `mp3` (default) works with all supported providers. Use `wav` if your provider requires uncompressed audio.
-
-**Q: The status bar doesn't show Voice2Code — where is it?**
-
-A: Ensure `voice2code.ui.showStatusBar` is `true`. If the status bar is crowded, right-click the status bar to manage which items are shown.
-
-**Q: Can I use Voice2Code with multiple projects (different endpoints per project)?**
-
-A: Yes — configure `voice2code.endpoint.url` at **Workspace** scope (not Global) in your project's `.vscode/settings.json`. This lets each project use a different STT backend.
+A: `mp3` (default) works with all providers. Use `wav` if your provider requires uncompressed audio.
 
 **Q: What languages does Voice2Code support?**
-
-A: Voice2Code transcribes to whatever language your STT model supports. Whisper supports 99+ languages. The extension itself inserts text and is language-agnostic.
+A: Whatever your STT model supports. Whisper supports 99+ languages.
 
 **Q: How do I report a bug?**
-
-A: Open an issue at [https://github.com/kiranshivaraju/voice2code/issues](https://github.com/kiranshivaraju/voice2code/issues) with:
-- VS Code version
-- Node.js version
-- STT provider and model
-- Steps to reproduce
-- Error output from VS Code Developer Tools (`Help → Toggle Developer Tools`)
+A: Open an issue at [github.com/kiranshivaraju/voice2code/issues](https://github.com/kiranshivaraju/voice2code/issues).
 
 ---
 
-*See also: [Cross-Platform Testing Results](platform-testing.md) | [README](../README.md)*
+*See also: [README](../README.md)*

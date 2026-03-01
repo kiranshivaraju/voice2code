@@ -32,10 +32,6 @@
           <input type="number" id="endpoint-timeout" min="1000" max="120000" step="1000">
         </div>
       </div>
-      <div class="field">
-        <button id="btn-test-connection" type="button">Test Connection</button>
-        <span id="test-connection-status" class="status"></span>
-      </div>
     </section>
 
     <!-- API Key Section -->
@@ -86,12 +82,17 @@
       </div>
     </section>
 
-    <!-- Save Section -->
+    <!-- Actions Section -->
     <section class="section">
       <div class="field">
         <button id="btn-save-settings" type="button" class="btn-primary">Save Settings</button>
         <span id="save-status" class="status"></span>
       </div>
+      <div class="field">
+        <button id="btn-test-connection" type="button">Test Connection</button>
+        <span id="test-connection-status" class="status"></span>
+      </div>
+      <p class="hint">Settings are saved automatically before testing the connection.</p>
     </section>
   </div>
 
