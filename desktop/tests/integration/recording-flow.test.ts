@@ -35,6 +35,7 @@ function createIntegrationMocks() {
       voiceCommandsEnabled: false,
       customCommands: {},
     }),
+    getSilenceThreshold: jest.fn().mockReturnValue(0.01),
   };
 
   const secretStore = {

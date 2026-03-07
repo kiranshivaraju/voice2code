@@ -76,7 +76,8 @@ export class DesktopEngine {
       await this.audioManager.startCapture(audioConfig);
 
       // Wire silence detection for auto-stop
-      this.silenceDetector = new SilenceDetector();
+      const silenceThreshold = this.configStore.getSilenceThreshold();
+      this.silenceDetector = new SilenceDetector({ silenceThreshold });
       this.silenceDetector.on('silence', () => this.stopRecording());
       this.audioManager.on('data', (chunk: Buffer) => {
         this.silenceDetector?.processChunk(chunk);

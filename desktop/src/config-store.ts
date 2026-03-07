@@ -22,6 +22,7 @@ export interface DesktopConfig {
     sampleRate: number;
     format: 'mp3' | 'wav';
     deviceId: string;
+    silenceThreshold: number;
   };
   ui: {
     showNotifications: boolean;
@@ -43,6 +44,7 @@ export const DEFAULT_CONFIG: DesktopConfig = {
     sampleRate: 16000,
     format: 'mp3',
     deviceId: 'default',
+    silenceThreshold: 0.01,
   },
   ui: {
     showNotifications: true,
@@ -81,6 +83,10 @@ export class ConfigStore {
     };
   }
 
+  getSilenceThreshold(): number {
+    return this.store.get('audio.silenceThreshold') ?? DEFAULT_CONFIG.audio.silenceThreshold;
+  }
+
   getUIConfig(): DesktopConfig['ui'] {
     return {
       showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
@@ -101,6 +107,7 @@ export class ConfigStore {
         sampleRate: this.store.get('audio.sampleRate') ?? DEFAULT_CONFIG.audio.sampleRate,
         format: (this.store.get('audio.format') ?? DEFAULT_CONFIG.audio.format) as 'mp3' | 'wav',
         deviceId: this.store.get('audio.deviceId') ?? DEFAULT_CONFIG.audio.deviceId,
+        silenceThreshold: this.store.get('audio.silenceThreshold') ?? DEFAULT_CONFIG.audio.silenceThreshold,
       },
       ui: {
         showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
@@ -169,6 +176,11 @@ export class ConfigStore {
         throw new ConfigurationError('Device ID cannot be empty');
       }
       this.store.set('audio.deviceId', audio.deviceId);
+    }
+
+    if (audio.silenceThreshold !== undefined) {
+      const clamped = Math.max(0.001, Math.min(0.5, audio.silenceThreshold));
+      this.store.set('audio.silenceThreshold', clamped);
     }
   }
 

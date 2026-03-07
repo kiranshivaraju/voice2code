@@ -7,7 +7,7 @@ declare global {
     settingsAPI: {
       getConfig(): Promise<{
         endpoint: { url: string; model: string; timeout: number; language: string };
-        audio: { sampleRate: number; format: string; deviceId?: string };
+        audio: { sampleRate: number; format: string; deviceId?: string; silenceThreshold?: number };
         ui: { showNotifications: boolean };
       }>;
       saveConfig(config: unknown): Promise<{ success: boolean; error?: string }>;
@@ -46,6 +46,7 @@ function getFormConfig() {
       format: ($('audio-format') as HTMLSelectElement).value,
       sampleRate: parseInt(($('audio-sample-rate') as HTMLSelectElement).value, 10),
       deviceId: ($('audio-device') as HTMLSelectElement).value,
+      silenceThreshold: parseFloat(($('silence-threshold') as HTMLInputElement).value),
     },
   };
 }
@@ -64,6 +65,11 @@ async function loadConfig() {
 
   ($('audio-format') as HTMLSelectElement).value = config.audio.format;
   ($('audio-sample-rate') as HTMLSelectElement).value = String(config.audio.sampleRate);
+
+  const threshold = config.audio.silenceThreshold ?? 0.01;
+  const slider = $('silence-threshold') as HTMLInputElement;
+  slider.value = String(threshold);
+  $('silence-threshold-value').textContent = String(threshold);
 
   await loadDevices(config.audio.deviceId || 'default');
 }
@@ -99,6 +105,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnTest = $('btn-test-connection') as HTMLButtonElement;
   const btnSaveKey = $('btn-save-api-key') as HTMLButtonElement;
   const btnDeleteKey = $('btn-delete-api-key') as HTMLButtonElement;
+
+  // Silence threshold slider live update
+  $('silence-threshold').addEventListener('input', () => {
+    $('silence-threshold-value').textContent = ($('silence-threshold') as HTMLInputElement).value;
+  });
 
   // Save Settings
   btnSave.addEventListener('click', async () => {

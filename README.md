@@ -94,6 +94,7 @@ Configure via the Settings window (accessible from the tray menu):
 - **Endpoint**: URL, model, language, timeout
 - **API Key**: Stored securely via electron-store encryption
 - **Audio**: Microphone device, format (MP3/WAV), sample rate
+- **Silence Sensitivity**: Slider to tune auto-stop threshold for your mic
 - Save & Test Connection buttons (auto-saves before testing)
 
 ## Voice Commands
@@ -117,6 +118,8 @@ Custom commands can be added in Settings.
 ## Silence Detection
 
 Recording auto-stops after 3 seconds of continuous silence. The detector waits until it hears speech before starting the silence timer — so ambient quiet won't trigger a premature stop. Just stop talking and wait 3 seconds, or press the hotkey again to stop manually.
+
+You can adjust the **Silence Sensitivity** slider in Settings to tune detection for your microphone. Increase it if recording never stops; decrease it if it stops too early.
 
 ## Error Handling
 
@@ -212,16 +215,28 @@ Available models: `openai/whisper-small`, `openai/whisper-large-v3`, `openai/whi
 - The app saves and restores your clipboard. A 200ms delay ensures macOS finishes pasting before restoration.
 
 **Recording stops too quickly**
-- The silence detector auto-stops after 3 seconds of quiet. If your mic picks up very low levels, speech may be misclassified as silence. Check your mic input level in System Settings > Sound.
+- Lower the **Silence Sensitivity** slider in Settings
+- Check your mic input level in System Settings > Sound
+
+**Recording never stops automatically**
+- Increase the **Silence Sensitivity** slider in Settings
 
 ---
 
-## Packaging for Distribution
+## Packaging and Auto-Start
+
+Build a standalone `.app` so you don't need to run from the terminal:
 
 ```bash
 cd desktop
-npm run dist    # Creates .dmg for macOS
+npm run build
+npm run dist    # Creates .dmg in desktop/dist/
 ```
+
+1. Open the `.dmg` and drag **Voice2Code** into **Applications**
+2. Open **System Settings → General → Login Items**, click **+**, select **Voice2Code**
+
+The app will now start automatically on login and live in your menu bar — no terminal needed.
 
 The app hides from the Dock (LSUIElement) and runs purely from the menu bar.
 

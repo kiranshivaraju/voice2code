@@ -6,7 +6,7 @@
 import { EventEmitter } from 'events';
 
 export interface SilenceDetectorOptions {
-  /** RMS threshold below which audio is considered silent (0-1 range). Default: 0.005 */
+  /** RMS threshold below which audio is considered silent (0-1 range). Default: 0.01 */
   silenceThreshold?: number;
   /** Duration of continuous silence (ms) before emitting 'silence'. Default: 3000 */
   silenceDuration?: number;
@@ -21,7 +21,7 @@ export class SilenceDetector extends EventEmitter {
 
   constructor(options: SilenceDetectorOptions = {}) {
     super();
-    this.threshold = options.silenceThreshold ?? 0.005;
+    this.threshold = options.silenceThreshold ?? 0.01;
     this.duration = options.silenceDuration ?? 3000;
   }
 
@@ -29,14 +29,20 @@ export class SilenceDetector extends EventEmitter {
   processChunk(chunk: Buffer): void {
     const rms = this.calculateRMS(chunk);
     const now = Date.now();
+    const isSilent = rms < this.threshold;
 
-    if (rms < this.threshold) {
+    // DEBUG: log every chunk so we can tune the threshold
+    console.log(`[silence-detector] RMS=${rms.toFixed(4)} threshold=${this.threshold} silent=${isSilent} hasSpeech=${this.hasSpeech}`);
+
+    if (isSilent) {
       // Silent chunk — only start tracking after speech has been detected
       if (this.hasSpeech && this.silenceStart === null) {
         this.silenceStart = now;
+        console.log('[silence-detector] silence timer started');
       }
       if (!this.emitted && this.hasSpeech && this.silenceStart !== null && now - this.silenceStart >= this.duration) {
         this.emitted = true;
+        console.log('[silence-detector] silence detected — emitting stop');
         this.emit('silence');
       }
     } else {
