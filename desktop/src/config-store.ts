@@ -23,6 +23,7 @@ export interface DesktopConfig {
     format: 'mp3' | 'wav';
     deviceId: string;
     silenceThreshold: number;
+    autoStopOnSilence: boolean;
   };
   ui: {
     showNotifications: boolean;
@@ -45,6 +46,7 @@ export const DEFAULT_CONFIG: DesktopConfig = {
     format: 'mp3',
     deviceId: 'default',
     silenceThreshold: 0.01,
+    autoStopOnSilence: true,
   },
   ui: {
     showNotifications: true,
@@ -87,6 +89,10 @@ export class ConfigStore {
     return this.store.get('audio.silenceThreshold') ?? DEFAULT_CONFIG.audio.silenceThreshold;
   }
 
+  getAutoStopOnSilence(): boolean {
+    return this.store.get('audio.autoStopOnSilence') ?? DEFAULT_CONFIG.audio.autoStopOnSilence;
+  }
+
   getUIConfig(): DesktopConfig['ui'] {
     return {
       showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
@@ -108,6 +114,7 @@ export class ConfigStore {
         format: (this.store.get('audio.format') ?? DEFAULT_CONFIG.audio.format) as 'mp3' | 'wav',
         deviceId: this.store.get('audio.deviceId') ?? DEFAULT_CONFIG.audio.deviceId,
         silenceThreshold: this.store.get('audio.silenceThreshold') ?? DEFAULT_CONFIG.audio.silenceThreshold,
+        autoStopOnSilence: this.store.get('audio.autoStopOnSilence') ?? DEFAULT_CONFIG.audio.autoStopOnSilence,
       },
       ui: {
         showNotifications: this.store.get('ui.showNotifications') ?? DEFAULT_CONFIG.ui.showNotifications,
@@ -181,6 +188,10 @@ export class ConfigStore {
     if (audio.silenceThreshold !== undefined) {
       const clamped = Math.max(0.001, Math.min(0.5, audio.silenceThreshold));
       this.store.set('audio.silenceThreshold', clamped);
+    }
+
+    if (audio.autoStopOnSilence !== undefined) {
+      this.store.set('audio.autoStopOnSilence', audio.autoStopOnSilence);
     }
   }
 

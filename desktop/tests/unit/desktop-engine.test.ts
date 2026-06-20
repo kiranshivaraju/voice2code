@@ -38,6 +38,7 @@ function createMocks() {
       customCommands: {},
     }),
     getSilenceThreshold: jest.fn().mockReturnValue(0.01),
+    getAutoStopOnSilence: jest.fn().mockReturnValue(true),
   };
 
   const secretStore = {
@@ -459,6 +460,21 @@ describe('DesktopEngine', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(mocks.audioManager.stopCapture).toHaveBeenCalled();
+    });
+
+    it('should NOT wire silence detection when autoStopOnSilence is disabled', async () => {
+      mocks.configStore.getAutoStopOnSilence.mockReturnValue(false);
+      await engine.toggleRecording(); // start
+      expect(engine.getState()).toBe('recording');
+      expect(mocks.audioManager.on).not.toHaveBeenCalledWith('data', expect.any(Function));
+    });
+
+    it('should stay recording (no auto-stop) when autoStopOnSilence is disabled', async () => {
+      // Even if data callbacks were fed, no detector exists to trigger a stop.
+      mocks.configStore.getAutoStopOnSilence.mockReturnValue(false);
+      await engine.toggleRecording(); // start
+      // Engine remains in recording until manually toggled
+      expect(engine.getState()).toBe('recording');
     });
   });
 

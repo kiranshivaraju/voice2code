@@ -31,18 +31,13 @@ export class SilenceDetector extends EventEmitter {
     const now = Date.now();
     const isSilent = rms < this.threshold;
 
-    // DEBUG: log every chunk so we can tune the threshold
-    console.log(`[silence-detector] RMS=${rms.toFixed(4)} threshold=${this.threshold} silent=${isSilent} hasSpeech=${this.hasSpeech}`);
-
     if (isSilent) {
       // Silent chunk — only start tracking after speech has been detected
       if (this.hasSpeech && this.silenceStart === null) {
         this.silenceStart = now;
-        console.log('[silence-detector] silence timer started');
       }
       if (!this.emitted && this.hasSpeech && this.silenceStart !== null && now - this.silenceStart >= this.duration) {
         this.emitted = true;
-        console.log('[silence-detector] silence detected — emitting stop');
         this.emit('silence');
       }
     } else {

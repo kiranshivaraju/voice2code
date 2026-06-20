@@ -242,6 +242,28 @@ describe('ConfigStore', () => {
     });
   });
 
+  describe('audio.autoStopOnSilence', () => {
+    it('should default autoStopOnSilence to true', () => {
+      expect(configStore.getAutoStopOnSilence()).toBe(true);
+    });
+
+    it('should save autoStopOnSilence false', () => {
+      configStore.save({ audio: { autoStopOnSilence: false } });
+      expect(configStore.getAutoStopOnSilence()).toBe(false);
+    });
+
+    it('should include autoStopOnSilence in getAll', () => {
+      configStore.save({ audio: { autoStopOnSilence: false } });
+      expect(configStore.getAll().audio.autoStopOnSilence).toBe(false);
+    });
+
+    it('should not affect autoStopOnSilence when saving unrelated audio fields', () => {
+      configStore.save({ audio: { autoStopOnSilence: false } });
+      configStore.save({ audio: { format: 'wav' } });
+      expect(configStore.getAutoStopOnSilence()).toBe(false);
+    });
+  });
+
   describe('getAll with new fields', () => {
     it('should include all new fields in getAll', () => {
       const config = configStore.getAll();

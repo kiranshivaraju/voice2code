@@ -7,7 +7,7 @@ declare global {
     settingsAPI: {
       getConfig(): Promise<{
         endpoint: { url: string; model: string; timeout: number; language: string };
-        audio: { sampleRate: number; format: string; deviceId?: string; silenceThreshold?: number };
+        audio: { sampleRate: number; format: string; deviceId?: string; silenceThreshold?: number; autoStopOnSilence?: boolean };
         ui: { showNotifications: boolean };
       }>;
       saveConfig(config: unknown): Promise<{ success: boolean; error?: string }>;
@@ -47,12 +47,18 @@ function getFormConfig() {
       sampleRate: parseInt(($('audio-sample-rate') as HTMLSelectElement).value, 10),
       deviceId: ($('audio-device') as HTMLSelectElement).value,
       silenceThreshold: parseFloat(($('silence-threshold') as HTMLInputElement).value),
+      autoStopOnSilence: ($('auto-stop-on-silence') as HTMLInputElement).checked,
     },
   };
 }
 
 async function saveSettings(): Promise<{ success: boolean; error?: string }> {
   return window.settingsAPI.saveConfig(getFormConfig());
+}
+
+/** Enable/disable the sensitivity slider based on whether auto-stop is on. */
+function syncSilenceControls(autoStopEnabled: boolean) {
+  ($('silence-threshold') as HTMLInputElement).disabled = !autoStopEnabled;
 }
 
 async function loadConfig() {
@@ -70,6 +76,10 @@ async function loadConfig() {
   const slider = $('silence-threshold') as HTMLInputElement;
   slider.value = String(threshold);
   $('silence-threshold-value').textContent = String(threshold);
+
+  const autoStop = config.audio.autoStopOnSilence ?? true;
+  ($('auto-stop-on-silence') as HTMLInputElement).checked = autoStop;
+  syncSilenceControls(autoStop);
 
   await loadDevices(config.audio.deviceId || 'default');
 }
@@ -109,6 +119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Silence threshold slider live update
   $('silence-threshold').addEventListener('input', () => {
     $('silence-threshold-value').textContent = ($('silence-threshold') as HTMLInputElement).value;
+  });
+
+  // Auto-stop toggle — enable/disable the sensitivity slider
+  $('auto-stop-on-silence').addEventListener('change', () => {
+    syncSilenceControls(($('auto-stop-on-silence') as HTMLInputElement).checked);
   });
 
   // Save Settings
