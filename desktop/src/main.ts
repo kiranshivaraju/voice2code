@@ -4,7 +4,13 @@
  */
 
 import { app } from 'electron';
+import net from 'net';
 import path from 'path';
+
+// Electron 28 ships Node 18, which connects only to the first DNS result.
+// On networks with broken IPv6 (DNS returns AAAA first), every STT request
+// hangs until timeout. Enable "happy eyeballs" to fall back to IPv4.
+net.setDefaultAutoSelectFamily(true);
 
 import { DeviceManager } from '@core/audio/device-manager';
 import { AudioManager } from '@core/audio/audio-manager';

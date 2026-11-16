@@ -2,6 +2,7 @@ import { AudioManager } from '../../../src/audio/audio-manager';
 import { DeviceManager } from '../../../src/audio/device-manager';
 import { AudioConfiguration, AudioError } from '../../../src/types';
 import { Readable } from 'stream';
+import { EventEmitter } from 'events';
 
 // Mock DeviceManager
 jest.mock('../../../src/audio/device-manager');
@@ -13,16 +14,19 @@ jest.mock('node-record-lpcm16');
 const record = require('node-record-lpcm16');
 
 function createMockRecording(): {
-  recording: { stream: jest.Mock; stop: jest.Mock };
+  recording: { stream: jest.Mock; stop: jest.Mock; process: EventEmitter };
   mockStream: Readable;
+  mockProcess: EventEmitter;
 } {
   const mockStream = new Readable({ read() {} });
+  const mockProcess = new EventEmitter();
 
   const recording = {
     stream: jest.fn().mockReturnValue(mockStream),
     stop: jest.fn(),
+    process: mockProcess,
   };
-  return { recording, mockStream };
+  return { recording, mockStream, mockProcess };
 }
 
 describe('AudioManager', () => {
@@ -325,7 +329,103 @@ describe('AudioManager', () => {
       // Give event loop a tick
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(errorHandler).toHaveBeenCalledWith(testError);
+      expect(errorHandler).toHaveBeenCalledWith(expect.any(AudioError));
+      expect(errorHandler.mock.calls[0][0].message).toContain('Microphone disconnected');
+      expect(audioManager.isCapturing()).toBe(false);
+    });
+
+    it('should report a missing sox binary instead of crashing', async () => {
+      const { recording, mockProcess } = createMockRecording();
+      record.record.mockReturnValue(recording);
+
+      const errorHandler = jest.fn();
+      audioManager.on('error', errorHandler);
+      await audioManager.startCapture(config);
+
+      const enoent = Object.assign(new Error('spawn rec ENOENT'), { code: 'ENOENT' });
+      mockProcess.emit('error', enoent);
+
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler.mock.calls[0][0]).toBeInstanceOf(AudioError);
+      expect(errorHandler.mock.calls[0][0].message).toContain('brew install sox');
+      expect(audioManager.isCapturing()).toBe(false);
+    });
+
+    it('should not throw when a recorder error has no listener', async () => {
+      const { recording, mockProcess } = createMockRecording();
+      record.record.mockReturnValue(recording);
+      await audioManager.startCapture(config);
+
+      expect(() => mockProcess.emit('error', new Error('boom'))).not.toThrow();
+      expect(audioManager.isCapturing()).toBe(false);
+    });
+
+    it('should report non-zero recorder exits passed as strings', async () => {
+      const { recording, mockStream } = createMockRecording();
+      record.record.mockReturnValue(recording);
+      const errorHandler = jest.fn();
+      audioManager.on('error', errorHandler);
+      await audioManager.startCapture(config);
+
+      mockStream.emit('error', 'rec has exited with error code 1.');
+
+      expect(errorHandler.mock.calls[0][0].message).toContain('rec has exited with error code 1.');
+    });
+
+    it('should ignore recorder errors that arrive after stopping', async () => {
+      const { recording, mockProcess } = createMockRecording();
+      record.record.mockReturnValue(recording);
+      const errorHandler = jest.fn();
+      audioManager.on('error', errorHandler);
+      await audioManager.startCapture(config);
+      await audioManager.stopCapture();
+
+      mockProcess.emit('error', new Error('late'));
+
+      expect(errorHandler).not.toHaveBeenCalled();
+    });
+
+    it('should still report the error if killing the recorder throws', async () => {
+      const { recording, mockProcess } = createMockRecording();
+      recording.stop.mockImplementation(() => {
+        throw new Error('already exited');
+      });
+      record.record.mockReturnValue(recording);
+      const errorHandler = jest.fn();
+      audioManager.on('error', errorHandler);
+      await audioManager.startCapture(config);
+
+      mockProcess.emit('error', new Error('boom'));
+
+      expect(errorHandler).toHaveBeenCalledWith(expect.any(AudioError));
+      expect(audioManager.isCapturing()).toBe(false);
+    });
+
+    it('should reset state and rethrow if stopping the recorder fails', async () => {
+      const { recording } = createMockRecording();
+      recording.stop.mockImplementation(() => {
+        throw new Error('kill failed');
+      });
+      record.record.mockReturnValue(recording);
+      await audioManager.startCapture(config);
+
+      await expect(audioManager.stopCapture()).rejects.toThrow('kill failed');
+      expect(audioManager.isCapturing()).toBe(false);
+    });
+
+    it('should keep Homebrew paths on PATH for Finder-launched apps', async () => {
+      const originalPath = process.env.PATH;
+      process.env.PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
+      try {
+        const { recording } = createMockRecording();
+        record.record.mockReturnValue(recording);
+        await audioManager.startCapture(config);
+
+        const entries = process.env.PATH.split(':');
+        expect(entries).toEqual(expect.arrayContaining(['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin']));
+      } finally {
+        process.env.PATH = originalPath;
+      }
     });
 
     it('should handle device disconnection during capture', async () => {

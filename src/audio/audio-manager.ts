@@ -73,13 +73,14 @@ export class AudioManager extends EventEmitter {
 
     // Ensure Homebrew/common binary paths are in PATH
     // VS Code's extension host inherits a minimal PATH that may not include them
-    const extraPaths = ['/opt/homebrew/bin', '/usr/local/bin'];
-    const currentPath = process.env.PATH || '';
-    for (const p of extraPaths) {
-      if (!currentPath.includes(p)) {
-        process.env.PATH = `${p}:${currentPath}`;
+    // (also macOS GUI apps launched from Finder, which get /usr/bin:/bin:/usr/sbin:/sbin)
+    const pathEntries = (process.env.PATH || '').split(':').filter(Boolean);
+    for (const p of ['/usr/local/bin', '/opt/homebrew/bin']) {
+      if (!pathEntries.includes(p)) {
+        pathEntries.unshift(p);
       }
     }
+    process.env.PATH = pathEntries.join(':');
 
     // Start real recording via node-record-lpcm16
     // Use 'rec' on macOS (part of sox), 'sox' elsewhere
@@ -98,9 +99,10 @@ export class AudioManager extends EventEmitter {
       this._audioChunks.push(chunk);
       this.emit('data', chunk);
     });
-    stream.on('error', (err: Error) => {
-      this.emit('error', err);
-    });
+    stream.on('error', (err: Error | string) => this._handleRecorderError(err));
+    // spawn failures (e.g. sox not installed / not on PATH) are emitted on the
+    // child process, not the stream. Unhandled, they crash the main process.
+    this._recording.process.on('error', (err: Error) => this._handleRecorderError(err));
 
     this._state = 'capturing';
   }
@@ -135,6 +137,36 @@ export class AudioManager extends EventEmitter {
       this._recording = null;
 
       throw error;
+    }
+  }
+
+  /**
+   * Reset capture state and surface a recorder failure as an AudioError.
+   * Only emits when someone is listening, so a failure can never throw an
+   * unhandled 'error' event.
+   */
+  private _handleRecorderError(err: Error | string): void {
+    if (this._state !== 'capturing') return; // stale error after stop
+
+    this._state = 'idle';
+    this._audioChunks = [];
+    try {
+      this._recording?.stop();
+    } catch {
+      // process already gone
+    }
+    this._recording = null;
+
+    const code = typeof err === 'object' ? (err as NodeJS.ErrnoException).code : undefined;
+    const message =
+      code === 'ENOENT'
+        ? 'Audio recorder (sox) not found. Install it with: brew install sox'
+        : `Audio recorder failed: ${typeof err === 'string' ? err : err.message}`;
+
+    if (this.listenerCount('error') > 0) {
+      this.emit('error', new AudioError(message));
+    } else {
+      console.error(message);
     }
   }
 

@@ -73,6 +73,8 @@ export class DesktopEngine {
 
     try {
       const audioConfig = this.configStore.getAudioConfig();
+      this.audioManager.removeAllListeners('error');
+      this.audioManager.on('error', (error: unknown) => this.handleCaptureError(error));
       await this.audioManager.startCapture(audioConfig);
 
       // Wire silence detection for auto-stop, unless the user prefers to stop manually
@@ -94,11 +96,7 @@ export class DesktopEngine {
   async stopRecording(): Promise<void> {
     if (this.state !== 'recording') return;
 
-    // Clean up silence detector and audio data listeners
-    this.silenceDetector?.reset();
-    this.silenceDetector?.removeAllListeners();
-    this.silenceDetector = null;
-    this.audioManager.removeAllListeners('data');
+    this.detachCaptureListeners();
 
     this.state = 'processing';
     this.trayManager.setState('processing');
@@ -134,6 +132,24 @@ export class DesktopEngine {
     }
   }
 
+  /** Recorder died mid-recording (e.g. sox missing, mic access denied). */
+  private handleCaptureError(error: unknown): void {
+    if (this.state !== 'recording') return;
+
+    this.detachCaptureListeners();
+
+    this.state = 'idle';
+    this.trayManager.setState('idle');
+    this.notifyError(error);
+  }
+
+  private detachCaptureListeners(): void {
+    this.silenceDetector?.reset();
+    this.silenceDetector?.removeAllListeners();
+    this.silenceDetector = null;
+    this.audioManager.removeAllListeners('data');
+  }
+
   getState(): RecordingState {
     return this.state;
   }
@@ -162,6 +178,11 @@ export class DesktopEngine {
       }
     } else if (error instanceof AudioError) {
       this.notify('Recording Failed', error.message);
+    } else if (error instanceof Error && error.message.includes('not allowed to send keystrokes')) {
+      this.notify(
+        'Accessibility Permission Needed',
+        'Allow Voice2Code in System Settings → Privacy & Security → Accessibility, then try again.'
+      );
     } else if (error instanceof Voice2CodeError) {
       this.notify('Error', error.message);
     } else {
